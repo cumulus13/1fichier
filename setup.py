@@ -20,7 +20,7 @@ try:
 except:
     pass
 shutil.copy2('__version__.py', 'onefichier')
-shutil.copy2('1fichier.py', 'onefichier')
+shutil.copy2('onefichier.py', 'onefichier')
 shutil.copy2('__init__.py', 'onefichier')
 shutil.copy2('size.py', 'onefichier')
 #shutil.copy2('downloader.py', '1fichier')
@@ -48,7 +48,7 @@ if sys.platform == 'win32':
 else:
     requirements += ['pygetch']
 setup(
-    name="1fichier",
+    name="onefichier",
     version=version,
     url="https://github.com/cumulus13/1fichier",
     project_urls={
