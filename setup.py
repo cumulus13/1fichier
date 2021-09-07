@@ -63,11 +63,11 @@ setup(
     description="1fichier url generator and unofficial API",
     # long_description=readme,
     # long_description_content_type="text/markdown",
-    packages=["1fichier"],
+    packages=["onefichier"],
     install_requires=requirements,
     entry_points = {
          "console_scripts": [
-             "1fichier = 1fichier.onefichier:usage",
+             "1fichier = onefichier.onefichier:usage",
          ]
     },
     # data_files=['__version__.py'],
