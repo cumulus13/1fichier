@@ -6,23 +6,23 @@ import os, sys
 import shutil
 
 try:
-    if os.path.isdir(os.path.join(os.path.dirname(__file__), '1fichier')):
-        shutil.rmtree(os.path.join(os.path.dirname(__file__), '1fichier'))
+    if os.path.isdir(os.path.join(os.path.dirname(__file__), 'onefichier')):
+        shutil.rmtree(os.path.join(os.path.dirname(__file__), 'onefichier'))
 except:
     print("Can't Remove directory, installing aborted !")
     sys.exit()
 try:
-    os.makedirs(os.path.join(os.path.dirname(__file__), '1fichier'))
+    os.makedirs(os.path.join(os.path.dirname(__file__), 'onefichier'))
 except:
     pass
 try:
-    os.remove(os.path.join('1fichier', '__version__.py'))
+    os.remove(os.path.join('onefichier', '__version__.py'))
 except:
     pass
-shutil.copy2('__version__.py', '1fichier')
-shutil.copy2('1fichier.py', '1fichier')
-shutil.copy2('__init__.py', '1fichier')
-shutil.copy2('size.py', '1fichier')
+shutil.copy2('__version__.py', 'onefichier')
+shutil.copy2('1fichier.py', 'onefichier')
+shutil.copy2('__init__.py', 'onefichier')
+shutil.copy2('size.py', 'onefichier')
 #shutil.copy2('downloader.py', '1fichier')
 #shutil.copy2('downloader2.py', '1fichier')
 

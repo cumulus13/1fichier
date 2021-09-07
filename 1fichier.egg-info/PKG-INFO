@@ -1,0 +1,22 @@
+Metadata-Version: 1.2
+Name: 1fichier
+Version: 0.14
+Summary: 1fichier url generator and unofficial API
+Home-page: https://github.com/cumulus13/1fichier
+Author: Hadi Cahyadi LD
+Author-email: cumulus13@gmail.com
+Maintainer: cumulus13 Team
+Maintainer-email: cumulus13@gmail.com
+License: BSD
+Project-URL: Documentation, https://github.com/cumulus13/1fichier
+Project-URL: Code, https://github.com/cumulus13/1fichier
+Description: UNKNOWN
+Platform: UNKNOWN
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: BSD License
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 2
+Classifier: Programming Language :: Python :: 3
+Requires-Python: >=2.7
