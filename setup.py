@@ -41,7 +41,9 @@ requirements = [
         'clipboard',
         'pydebugger',
         'configset',
-        'pywget'
+        'pywget',
+        'progressbar2',
+        'bitmath'
     ]
 if sys.platform == 'win32':    
     requirements += ['idm']
