@@ -1,1 +1,1 @@
-from . 1fichier import onefichier
+from . import *

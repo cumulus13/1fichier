@@ -1,8 +1,0 @@
-bs4
-clipboard
-configset
-make_colors>=3.12
-pydebugger
-pygetch
-pywget
-requests
