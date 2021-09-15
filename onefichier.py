@@ -793,7 +793,8 @@ class onefichier(object):
             return False
 
     
-    def remote_upload(self, links):
+    def remote_upload(self, links, timeout = 3, retries = 10):
+        error = False
         if not self.sess.cookies.get('SID'):
             self.login()
         debug(cookie = self.sess.cookies)
@@ -804,7 +805,21 @@ class onefichier(object):
             if i == 'c':
                 i = clipboard.paste()
             data = {'links': i }
-            a = self.sess.post(url, data = data)
+            n = 1
+            while 1:
+                try:
+                    a = self.sess.post(url, data = data, timeout = timeout)
+                    break
+                except:
+                    if not n == retries:
+                        n += 1
+                        time.sleep(1)
+                    else:
+                        error = True
+                        break
+            if error:
+                print(make_colors("please check internet connection !", 'lw', 'r'))
+                return False
             content = a.content
             print("content =", content)
             if "Can not find any valid link" in content:
@@ -877,7 +892,7 @@ class onefichier(object):
     def usage(self):
         parser = argparse.ArgumentParser(formatter_class = argparse.RawTextHelpFormatter)
         parser.add_argument('-b', '--sort-by', action = 'store', help = 'Sortby: time/timestamp, date, name, rel, size')
-        parser.add_argument('-r', '--remote-upload', action = 'store', help = 'Remote Upload')
+        parser.add_argument('-r', '--remote-upload', action = 'store', help = 'Remote Upload', nargs = '*')
         parser.add_argument('-p', '--download-path', action = 'store', help = 'Download Path or Export save path', default = os.getcwd())
         parser.add_argument('-d', '--download', action = 'store', help = 'Convert Link and download it')
         parser.add_argument('-g', '--generate', action = 'store', help = 'Convert Link Only')

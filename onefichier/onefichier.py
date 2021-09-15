@@ -31,7 +31,13 @@ if sys.platform == 'win32':
 else:
     from pygetch.getch import getch# GETCHAR as getch
     setattr(getch, 'getch', getch.GETCHAR)
-from pause import pause
+try:
+    from pause import pause
+except:
+    def pause():
+        q = raw_input(make_colors("Enter to continue, or [q]uit or e[x]it to quit !", 'lw', 'r'))
+        if q == 'q' or q == 'x' or q == 'quit' or q == 'exit':
+            sys.exit()
 
 os.environ.update({'PYTHONIOENCODING':'UTF-8'})
 
@@ -420,164 +426,189 @@ class onefichier(object):
         bar = progressbar.ProgressBar(max_value = self.max_value, prefix = self.prefix, variables = self.variables)
         if q:
             q = str(q).strip()
-        if q and str(q).isdigit() and int(q) <= len(data):
-            task = make_colors("Download Link", 'lightwhite', 'blue')
-            subtask = make_colors("Get", 'lightwhite', 'magenta') + " "
-            bar.update(bar.value + 1, task = task, subtask = subtask)
-            #print("data.get(list(data.keys())[0]).keys() =", data.get(list(data.keys())[0]).keys())
-            if sort_by and str(sort_by).lower().strip() in data.get(list(data.keys())[0]).keys():
-                debug(data_selected = data.get(list(data.keys())[int(q) - 1]))
-                link = self.download_link(data.get(list(data.keys())[int(q) - 1]).get('rel'))
-                name = data.get(list(data.keys())[int(q) - 1]).get('name')
-            else:
-                link = self.download_link(data[int(q) - 1].get('rel'))
-                name = data[int(q) - 1].get('name')
-
-            task = make_colors("Download Link", 'lightwhite', 'blue')
-            subtask = make_colors("Convert", 'lightwhite', 'magenta') + " "
-            bar.update(bar.value + 1, task = task, subtask = subtask)
-            download_link = self.get_download_link(link)
-            task = make_colors("Download", 'lightwhite', 'blue')
-            subtask = make_colors(name, 'lightred', 'lightyellow') + " "
-            bar.update(bar.value + 1, task = task, subtask = subtask)
-            if download_link[0]:
-                self.download(download_link[1], download_path, confirm, force_wget, name)
-            else:
-                task = make_colors("Download", 'lightwhite', 'lightred')
-                subtask = make_colors("ERROR Wait for " + download_link[1] + " minutes", 'lightred', 'lightwhite') + " "
-                bar.update(bar.max_value, task = task, subtask = subtask)					
-
-        elif str(q).strip()[-1] == 'm':
-            if len(str(q).strip()) > 1:
-                number_selected = str(q).strip()[:-1]
-            else:
-                number_selected = raw_input(make_colors("Select number to remove: ", 'lightwhite', 'lightred'))
-
-            if number_selected and str(number_selected).isdigit() and int(number_selected) <= len(data):
+            if q and str(q).isdigit() and int(q) <= len(data):
+                task = make_colors("Download Link", 'lightwhite', 'blue')
+                subtask = make_colors("Get", 'lightwhite', 'magenta') + " "
+                bar.update(bar.value + 1, task = task, subtask = subtask)
+                #print("data.get(list(data.keys())[0]).keys() =", data.get(list(data.keys())[0]).keys())
                 if sort_by and str(sort_by).lower().strip() in data.get(list(data.keys())[0]).keys():
-                    debug(data_selected = data.get(list(data.keys())[int(number_selected) - 1]))
-                    rel = data.get(list(data.keys())[int(number_selected) - 1]).get('rel')
-                    subtask = make_colors(data.get(list(data.keys())[int(number_selected) - 1]).get('name'), 'lightwhite', 'blue') + " "
+                    debug(data_selected = data.get(list(data.keys())[int(q) - 1]))
+                    link = self.download_link(data.get(list(data.keys())[int(q) - 1]).get('rel'))
+                    name = data.get(list(data.keys())[int(q) - 1]).get('name')
                 else:
-                    rel = data[int(number_selected) - 1].get('rel')
-                    subtask = make_colors(data[int(number_selected) - 1].get('name'), 'lightwhite', 'blue') + " "
-                task = make_colors("Deleting", "lightwhite", "lightred")						
-                bar.update(5, task = task, subtask = subtask)
-                #raw_input("Enter to Continue")
-                debug(rel = rel)
-                self.remove(rel)
-                bar.update(bar.max_value, task = task, subtask = subtask)
+                    link = self.download_link(data[int(q) - 1].get('rel'))
+                    name = data[int(q) - 1].get('name')
 
-            elif "," in number_selected or " " in number_selected:
-                number_selected = re.sub(" ", "", number_selected)
-                list_number_selected = re.split(",| ", number_selected)
-                debug(list_number_selected = list_number_selected)
-                for i in list_number_selected:
-                    bar.max_value = len(list_number_selected)
-                    number_selected = str(i).strip()
-                    if number_selected and str(number_selected).isdigit() and int(number_selected) <= len(data):
-                        #print("str(sort_by).lower().strip() =", str(sort_by).lower().strip())
-                        #print("data.get(list(data.keys())[0]).keys() =", data.get(list(data.keys())[0]).keys())
-                        if sort_by and str(sort_by).lower().strip() in data.get(list(data.keys())[0]).keys():
-                            debug(data_selected = data.get(list(data.keys())[int(number_selected) - 1]))
-                            rel = data.get(list(data.keys())[int(number_selected) - 1]).get('rel')
-                            subtask = make_colors(data.get(list(data.keys())[int(number_selected) - 1]).get('name'), 'lightwhite', 'blue') + " "
-                        else:
-                            rel = data[int(number_selected) - 1].get('rel')
-                            subtask = make_colors(data[int(number_selected) - 1].get('name'), 'lightwhite', 'blue') + " "
+                task = make_colors("Generator", 'lightwhite', 'blue')
+                subtask = make_colors("Convert", 'lightwhite', 'magenta') + " "
+                bar.update(bar.value + 1, task = task, subtask = subtask)
+                download_link = self.get_download_link(link)
+                if download_link[0]:
+                    print(make_colors("GENERATE:", 'r', 'lw') + " " + make_colors(download_link[1], 'b', 'ly'))
+                    print(make_colors("NAME    :", 'lw', 'bl') + " " + make_colors(download_link[2].get('name'), 'lw', 'bl'))
+                    print(make_colors("SIZE    :", 'b', 'lg') + " " + make_colors(download_link[2].get('size'), 'b', 'lg'))
+                    print(make_colors("DATE    :", 'lw', 'm') + " " + make_colors(download_link[2].get('date'), 'lw', 'm'))
+                else:
+                    print(make_colors("GENERATE:", 'r', 'lw') + " " + make_colors("FAILED !", 'lw', 'r'))
+                
+            if q and str(q).isdigit() and q[-1] == 'd':
+                q = q[:-1]
+                task = make_colors("Download Link", 'lightwhite', 'blue')
+                subtask = make_colors("Get", 'lightwhite', 'magenta') + " "
+                bar.update(bar.value + 1, task = task, subtask = subtask)
+                #print("data.get(list(data.keys())[0]).keys() =", data.get(list(data.keys())[0]).keys())
+                if sort_by and str(sort_by).lower().strip() in data.get(list(data.keys())[0]).keys():
+                    debug(data_selected = data.get(list(data.keys())[int(q) - 1]))
+                    link = self.download_link(data.get(list(data.keys())[int(q) - 1]).get('rel'))
+                    name = data.get(list(data.keys())[int(q) - 1]).get('name')
+                else:
+                    link = self.download_link(data[int(q) - 1].get('rel'))
+                    name = data[int(q) - 1].get('name')
 
-                        task = make_colors("Deleting", "lightwhite", "lightred")
-                        debug(rel = rel)
-                        self.remove(rel)
-                        bar.update(bar.value + 1, task = task, subtask = subtask)
+                task = make_colors("Download Link", 'lightwhite', 'blue')
+                subtask = make_colors("Convert", 'lightwhite', 'magenta') + " "
+                bar.update(bar.value + 1, task = task, subtask = subtask)
+                download_link = self.get_download_link(link)
+                task = make_colors("Download", 'lightwhite', 'blue')
+                subtask = make_colors(name, 'lightred', 'lightyellow') + " "
+                bar.update(bar.value + 1, task = task, subtask = subtask)
+                if download_link[0]:
+                    self.download(download_link[1], download_path, confirm, force_wget, name)
+                else:
+                    task = make_colors("Download", 'lightwhite', 'lightred')
+                    subtask = make_colors("ERROR Wait for " + download_link[1] + " minutes", 'lightred', 'lightwhite') + " "
+                    bar.update(bar.max_value, task = task, subtask = subtask)					
+            elif str(q).strip()[-1] == 'm':
+                if len(str(q).strip()) > 1:
+                    number_selected = str(q).strip()[:-1]
+                else:
+                    number_selected = raw_input(make_colors("Select number to remove: ", 'lightwhite', 'lightred'))
+
+                if number_selected and str(number_selected).isdigit() and int(number_selected) <= len(data):
+                    if sort_by and str(sort_by).lower().strip() in data.get(list(data.keys())[0]).keys():
+                        debug(data_selected = data.get(list(data.keys())[int(number_selected) - 1]))
+                        rel = data.get(list(data.keys())[int(number_selected) - 1]).get('rel')
+                        subtask = make_colors(data.get(list(data.keys())[int(number_selected) - 1]).get('name'), 'lightwhite', 'blue') + " "
                     else:
-                        task = make_colors("Deleting", "lightwhite", "lightred")
-                        subtask = make_colors("ERROR", 'lightwhite', 'lightred') + " "
-                        bar.update(bar.value + 1, task = task, subtask = subtask)
+                        rel = data[int(number_selected) - 1].get('rel')
+                        subtask = make_colors(data[int(number_selected) - 1].get('name'), 'lightwhite', 'blue') + " "
+                    task = make_colors("Deleting", "lightwhite", "lightred")						
+                    bar.update(5, task = task, subtask = subtask)
+                    #raw_input("Enter to Continue")
+                    debug(rel = rel)
+                    self.remove(rel)
+                    bar.update(bar.max_value, task = task, subtask = subtask)
 
-            elif "-" in number_selected:
-                number_selected = re.sub(" ", "", number_selected)
-                debug(number_selected = number_selected)
-                number_selected = re.split("-", number_selected)
-                debug(number_selected = number_selected)
-                list_number_selected = list(range(int(number_selected[0]), (int(number_selected[1]) + 1)))
-                debug(list_number_selected = list_number_selected)
-                list_number_selected_str = str(list_number_selected)[1:-1] + "m"
-                debug(list_number_selected_str = list_number_selected_str)
+                elif "," in number_selected or " " in number_selected:
+                    number_selected = re.sub(" ", "", number_selected)
+                    list_number_selected = re.split(",| ", number_selected)
+                    debug(list_number_selected = list_number_selected)
+                    for i in list_number_selected:
+                        bar.max_value = len(list_number_selected)
+                        number_selected = str(i).strip()
+                        if number_selected and str(number_selected).isdigit() and int(number_selected) <= len(data):
+                            #print("str(sort_by).lower().strip() =", str(sort_by).lower().strip())
+                            #print("data.get(list(data.keys())[0]).keys() =", data.get(list(data.keys())[0]).keys())
+                            if sort_by and str(sort_by).lower().strip() in data.get(list(data.keys())[0]).keys():
+                                debug(data_selected = data.get(list(data.keys())[int(number_selected) - 1]))
+                                rel = data.get(list(data.keys())[int(number_selected) - 1]).get('rel')
+                                subtask = make_colors(data.get(list(data.keys())[int(number_selected) - 1]).get('name'), 'lightwhite', 'blue') + " "
+                            else:
+                                rel = data[int(number_selected) - 1].get('rel')
+                                subtask = make_colors(data[int(number_selected) - 1].get('name'), 'lightwhite', 'blue') + " "
 
-                return self.navigator(username, password, no_verify, use_all, force_https, force_http, proxy, minute_add, download_path, confirm, force_wget, list_number_selected_str, data, False, sort_by = sort_by)
+                            task = make_colors("Deleting", "lightwhite", "lightred")
+                            debug(rel = rel)
+                            self.remove(rel)
+                            bar.update(bar.value + 1, task = task, subtask = subtask)
+                        else:
+                            task = make_colors("Deleting", "lightwhite", "lightred")
+                            subtask = make_colors("ERROR", 'lightwhite', 'lightred') + " "
+                            bar.update(bar.value + 1, task = task, subtask = subtask)
 
-        elif str(q).strip()[-1] == 'e':
-            if len(str(q).strip()) > 1:
-                number_selected = str(q).strip()[:-1]
-            else:
-                number_selected = raw_input(make_colors("Select number to export: ", 'lightwhite', 'lightred'))
-            task = make_colors("Export", "lightwhite", "blue")
-            subtask = make_colors("start", 'black', 'lightgreen') + " "
-            bar.update(bar.value + 5, task = task, subtask = subtask)
-            if number_selected and str(number_selected).isdigit() and int(number_selected) <= len(data):
-                if sort_by and str(sort_by).lower().strip() in data.get(list(data.keys())[0]).keys():
-                    debug(data_selected = data.get(list(data.keys())[int(number_selected) - 1]))
-                    rel = data.get(list(data.keys())[int(number_selected) - 1]).get('rel')
-                    subtask = make_colors(data.get(list(data.keys())[int(number_selected) - 1]).get('name'), 'lightwhite', 'blue') + " "
+                elif "-" in number_selected:
+                    number_selected = re.sub(" ", "", number_selected)
+                    debug(number_selected = number_selected)
+                    number_selected = re.split("-", number_selected)
+                    debug(number_selected = number_selected)
+                    list_number_selected = list(range(int(number_selected[0]), (int(number_selected[1]) + 1)))
+                    debug(list_number_selected = list_number_selected)
+                    list_number_selected_str = str(list_number_selected)[1:-1] + "m"
+                    debug(list_number_selected_str = list_number_selected_str)
+
+                    return self.navigator(username, password, no_verify, use_all, force_https, force_http, proxy, minute_add, download_path, confirm, force_wget, list_number_selected_str, data, False, sort_by = sort_by)
+
+            elif str(q).strip()[-1] == 'e':
+                if len(str(q).strip()) > 1:
+                    number_selected = str(q).strip()[:-1]
                 else:
-                    debug(data_selected = data[int(number_selected) - 1])
-                    rel = data[int(number_selected) - 1].get('rel')
-                    subtask = make_colors(data[int(number_selected) - 1].get('name'), 'lightwhite', 'blue') + " "
-            else:
-                task = make_colors("Export", "lightwhite", "lightred")
-                subtask = make_colors("ERROR", 'lightwhite', 'lightred') + " "
+                    number_selected = raw_input(make_colors("Select number to export: ", 'lightwhite', 'lightred'))
+                task = make_colors("Export", "lightwhite", "blue")
+                subtask = make_colors("start", 'black', 'lightgreen') + " "
+                bar.update(bar.value + 5, task = task, subtask = subtask)
+                if number_selected and str(number_selected).isdigit() and int(number_selected) <= len(data):
+                    if sort_by and str(sort_by).lower().strip() in data.get(list(data.keys())[0]).keys():
+                        debug(data_selected = data.get(list(data.keys())[int(number_selected) - 1]))
+                        rel = data.get(list(data.keys())[int(number_selected) - 1]).get('rel')
+                        subtask = make_colors(data.get(list(data.keys())[int(number_selected) - 1]).get('name'), 'lightwhite', 'blue') + " "
+                    else:
+                        debug(data_selected = data[int(number_selected) - 1])
+                        rel = data[int(number_selected) - 1].get('rel')
+                        subtask = make_colors(data[int(number_selected) - 1].get('name'), 'lightwhite', 'blue') + " "
+                else:
+                    task = make_colors("Export", "lightwhite", "lightred")
+                    subtask = make_colors("ERROR", 'lightwhite', 'lightred') + " "
+                    bar.update(bar.max_value, task = task, subtask = subtask)
+
+                task = make_colors("Export", "lightwhite", "blue")
+                debug(rel = rel)
+                self.export(rel, download_path)
                 bar.update(bar.max_value, task = task, subtask = subtask)
 
-            task = make_colors("Export", "lightwhite", "blue")
-            debug(rel = rel)
-            self.export(rel, download_path)
-            bar.update(bar.max_value, task = task, subtask = subtask)
+            elif q == 'r':
+                qr = raw_input(make_colors("Input Remote URL: ", 'lightwhite', 'blue'))
+                if qr:
+                    if qr.strip() == 'c':
+                        qr = clipboard.paste()
+                    if 'http' in qr or 'ftp' in qr:
+                        self.remote_upload(str(qr))
 
-        elif q == 'r':
-            qr = raw_input(make_colors("Input Remote URL: ", 'lightwhite', 'blue'))
-            if qr:
-                if qr.strip() == 'c':
-                    qr = clipboard.paste()
-                if 'http' in qr or 'ftp' in qr:
-                    self.remote_upload(str(qr))
+            elif q == 'x' or q == 'q':
+                task = make_colors("EXIT", 'lightwhite', 'lightred')
+                subtask = make_colors("System Exit !", 'lightwhite', 'lightred') + " "
+                bar.update(self.max_value, task = task, subtask = subtask)
+                print("\n")
+                sys.exit(make_colors("EXIT !", 'lightwhite', 'lightred'))
+                #sys.exit()
+            elif q == 'h' or q == '-h':
+                help_str = """usage: 1fichier.py [-h] [-s SORT_BY] [-r REMOTE_UPLOAD] [-p DOWNLOAD_PATH]
+                        [-d DOWNLOAD] [-w] [-c] [-U USERNAME] [-P PASSWORD]
+                        [-x [PROXY [PROXY ...]]] [-nv] [-a] [-http] [-https]
 
-        elif q == 'x' or q == 'q':
-            task = make_colors("EXIT", 'lightwhite', 'lightred')
-            subtask = make_colors("System Exit !", 'lightwhite', 'lightred') + " "
-            bar.update(self.max_value, task = task, subtask = subtask)
-            print("\n")
-            sys.exit(make_colors("EXIT !", 'lightwhite', 'lightred'))
-            #sys.exit()
-        elif q == 'h' or q == '-h':
-            help_str = """usage: 1fichier.py [-h] [-s SORT_BY] [-r REMOTE_UPLOAD] [-p DOWNLOAD_PATH]
-					[-d DOWNLOAD] [-w] [-c] [-U USERNAME] [-P PASSWORD]
-					[-x [PROXY [PROXY ...]]] [-nv] [-a] [-http] [-https]
+    optional arguments:
+      -h, --help            show this help message and exit
+      -s SORT_BY, --sort-by SORT_BY
+                            Sortby: time/timestamp, date, name, rel, size
+      -r REMOTE_UPLOAD, --remote-upload REMOTE_UPLOAD
+                            Remote Upload
+      -p DOWNLOAD_PATH, --download-path DOWNLOAD_PATH
+                            Download Path or Export save path
+      -d DOWNLOAD, --download DOWNLOAD
+                            Convert Link and download it
+      -w, --wget            Force use wget as downloader
+      -c, --confirm         Confirm before download it (IDM Only)
+      -U USERNAME, --username USERNAME
+                            Username (email) login
+      -P PASSWORD, --password PASSWORD
+                            Password login
+      -x [PROXY [PROXY ...]], --proxy [PROXY [PROXY ...]]
+                            Via Proxy, example: https://192.168.0.1:3128 https://192.168.0.1:3128 ftp://127.0.0.1:33 or {'http':'127.0.0.1:8080', 'https': '10.5.6.7:5656'} or type 'auto' for auto proxy
+      -nv, --no-verify      Use all type of proxy (http or https)
+      -a, --all             Use all type of proxy (http or https) to session
+      -http, --http         Use all type of proxy (http or https) to session and set to http
+      -https, --https       Use all type of proxy (http or https) to session and set to https"""
 
-optional arguments:
-  -h, --help            show this help message and exit
-  -s SORT_BY, --sort-by SORT_BY
-                        Sortby: time/timestamp, date, name, rel, size
-  -r REMOTE_UPLOAD, --remote-upload REMOTE_UPLOAD
-                        Remote Upload
-  -p DOWNLOAD_PATH, --download-path DOWNLOAD_PATH
-                        Download Path or Export save path
-  -d DOWNLOAD, --download DOWNLOAD
-                        Convert Link and download it
-  -w, --wget            Force use wget as downloader
-  -c, --confirm         Confirm before download it (IDM Only)
-  -U USERNAME, --username USERNAME
-                        Username (email) login
-  -P PASSWORD, --password PASSWORD
-                        Password login
-  -x [PROXY [PROXY ...]], --proxy [PROXY [PROXY ...]]
-                        Via Proxy, example: https://192.168.0.1:3128 https://192.168.0.1:3128 ftp://127.0.0.1:33 or {'http':'127.0.0.1:8080', 'https': '10.5.6.7:5656'} or type 'auto' for auto proxy
-  -nv, --no-verify      Use all type of proxy (http or https)
-  -a, --all             Use all type of proxy (http or https) to session
-  -http, --http         Use all type of proxy (http or https) to session and set to http
-  -https, --https       Use all type of proxy (http or https) to session and set to https"""
-
-            print(make_colors(help_str, 'lightcyan'))
+                print(make_colors(help_str, 'lightcyan'))
 
         #raw_input("Enter to Continue")
         print("\n")
@@ -585,7 +616,17 @@ optional arguments:
 
     
     def print_nav(self):
-        note1 = make_colors("Select Number", 'lightwhite', 'lightblue') + " [" + make_colors("[n]m = remove n", 'lightwhite', 'lightred') + ", " + make_colors("r = remote upload", "lightwhite", 'magenta') + ", " + make_colors("[n]e = Export n to file .csv", 'red', "lightyellow") + ", " + make_colors('h|-h = Print command help', 'black', 'lightgreen') + ", " +  make_colors("e[x]it|[q]uit = exit|quit", 'lightred') + ", " + make_colors("download_path=[dir], set download path", 'lightblue') + ", " + make_colors("[n = Number selected] default select number is download n", 'lightwhite', 'lightblue') + ": "
+        note1 = make_colors(
+        "Select Number", 'lightwhite', 'lightblue') + " [" +\
+        make_colors("[n] = generate download link", 'b', 'lc') + ", " +\
+        make_colors("[n]d = download it", 'b', 'ly') + ", " +\
+        make_colors("[n]m = remove n", 'lightwhite', 'lightred') + ", " +\
+        make_colors("r = remote upload", "lightwhite", 'magenta') + ", " +\
+        make_colors("[n]e = Export n to file .csv", 'red', "lightyellow") + ", " +\
+        make_colors('h|-h = Print command help', 'black', 'lightgreen') + ", " +\
+        make_colors("e[x]it|[q]uit = exit|quit", 'lightred') + ", " +\
+        make_colors("download_path=[dir], set download path", 'lightblue') + ", " +\
+        make_colors("[n = Number selected] default select number is download n", 'lightwhite', 'lightblue') + ": "
 
         q = raw_input(note1)
         return q		
