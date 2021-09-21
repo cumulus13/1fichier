@@ -4,34 +4,34 @@ from pydebugger.debug import debug
 import bitmath
 
 def convert(size, stype="mb"):
-	stype = str(stype).strip().lower()
-	debug(size = size)
-	debug(stype = stype)
-	size = float(size)
-	
-	if stype == 'mb':
-		size = bitmath.Mb(size)
-	elif stype == 'gb':
-		size = bitmath.Gb(size)
-	elif stype == 'tb':
-		size = bitmath.Tb(size)
-	elif stype == 'kb':
-		size = bitmath.Kib(size)
-	debug(size = size)
-	
-	#  print("sizeof_fmt 1=", sizeof_fmt(size))
-	#  print("sizeof_fmt 2=", sizeof_fmt2(size))
-	#  print("sizeof_fmt 3=", sizeof_fmt3(size))
-	#  print("sizeof_fmt 4=", sizeof_fmt(size))
-	#  print("human_size =", human_size(size))
-	#  print("human_readable_bytes =", human_readable_bytes(size))
-	#  print("get_human_readable_size =", get_human_readable_size(size))
-	return size.Bit
-	
+    stype = str(stype).strip().lower()
+    debug(size = size)
+    debug(stype = stype)
+    size = float(size)
+
+    if stype == 'mb':
+        size = bitmath.Mb(size)
+    elif stype == 'gb':
+        size = bitmath.Gb(size)
+    elif stype == 'tb':
+        size = bitmath.Tb(size)
+    elif stype == 'kb':
+        size = bitmath.Kib(size)
+    debug(size = size)
+
+    #  print("sizeof_fmt 1=", sizeof_fmt(size))
+    #  print("sizeof_fmt 2=", sizeof_fmt2(size))
+    #  print("sizeof_fmt 3=", sizeof_fmt3(size))
+    #  print("sizeof_fmt 4=", sizeof_fmt(size))
+    #  print("human_size =", human_size(size))
+    #  print("human_readable_bytes =", human_readable_bytes(size))
+    #  print("get_human_readable_size =", get_human_readable_size(size))
+    return size.Bit
+
 def total(bit):
-	return bitmath.Bit(bit).Gb
-	
-	
+    return bitmath.Bit(bit).Gb
+
+
 def sizeof_fmt(num):
     for x in [' bytes', ' KB', ' MB', ' GB', ' TB']:
         if num < 1024.0:
@@ -147,9 +147,9 @@ def human_readable_bytes(x):
 
 
 def get_human_readable_size(num):
-	exp_str = [(0, 'B'), (10, 'KB'), (20, 'MB'), (30, 'GB'), (40, 'TB'), (50, 'PB'), ]
-	i = 0
-	while i + 1 < len(exp_str) and num >= (2 ** exp_str[i + 1][0]):
-		i += 1
-		rounded_val = round(float(num) / 2 ** exp_str[i][0], 2)
-		return '%s %s' % (int(rounded_val), exp_str[i][1])
+    exp_str = [(0, 'B'), (10, 'KB'), (20, 'MB'), (30, 'GB'), (40, 'TB'), (50, 'PB'), ]
+    i = 0
+    while i + 1 < len(exp_str) and num >= (2 ** exp_str[i + 1][0]):
+        i += 1
+        rounded_val = round(float(num) / 2 ** exp_str[i][0], 2)
+        return '%s %s' % (int(rounded_val), exp_str[i][1])

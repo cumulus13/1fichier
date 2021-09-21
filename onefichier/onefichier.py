@@ -54,6 +54,41 @@ class onefichier(object):
         self.variables =  {'task': '--', 'subtask': '--'}
         self.max_value = 10
 
+    def request(self, url, rtype = 'get', headers = None, data = {}, params = {}, timeout = 3, retries = 10, sleep = 1):
+        timeout = timeout or self.config.get_config('policy', 'timeout', '10')
+        debug(timeout = timeout)
+        retries = retries or self.config.get_config('policy', 'retries', '10')
+        debug(retries = retries)
+        sleep = sleep or self.config.get_config('policy', 'sleep', '1')
+        debug(sleep = sleep)
+        n = 1
+        error = False
+        error_type = ''
+        error_full = ''
+        while 1:
+            try:
+                if rtype == 'post':    
+                    req = self.sess.post(url, data=data, params = params, headers = headers, timeout = timeout)
+                else:
+                    req = self.sess.get(url, params = params, headers = headers, timeout = timeout)
+                break
+            except:
+                tr, vl, tb = sys.exc_info()
+                error_type = vl.__class__.__name__
+                error_full = traceback.format_exc()
+                if not n == retries:
+                    n += 1
+                    time.sleep(sleep)
+                else:
+                    error = True
+                    break
+        if error:
+            print(make_colors("ERROR:", 'b', 'y') + " " + make_colors(error_type, 'lw', 'r'))
+            if os.getenv('DEBUG'):
+                print(make_colors("TRACEBACK:", 'b', 'y') + " " + make_colors(error_full, 'lw', 'bl'))
+            return False
+        return req
+    
     def pause(self, page=''):
         lineno = str(inspect.stack()[1][2])		
         if page:
@@ -92,7 +127,11 @@ class onefichier(object):
 
         debug(data = data)
 
-        a = self.sess.post(url, data = data)
+        #a = self.sess.post(url, data = data)
+        a = self.request(url, data = data, rtype = 'post')
+        if not a:
+            print(make_colors("Login Failed !", 'lw', 'r'))
+            sys.exit()
         debug(sess_proxy = self.sess.proxies)
         content = a.content
         b = bs(content, 'lxml')
@@ -233,13 +272,16 @@ class onefichier(object):
         if not self.sess.cookies.get('SID'):
             self.login()
         url = self.url + "console/remote.pl?r=all"
-        return self.sess.get(url)
+        return self.request(url)
 
     
     def get_download_link_info(self, bs_object = None, url = None):
         if not bs_object:
             if url:
-                a = self.sess.get(url)
+                a = self.request(url)
+                if not a:
+                    print(make_colors("Get link info Failed !", 'lw', 'r'))
+                    return False
                 bs_object = bs(a.content, 'lxml')
             else:
                 return False
@@ -257,24 +299,30 @@ class onefichier(object):
                 size = all_tr[2].find_all('td')[1].text
                 debug(size = size)
                 info.update({
-                                    'name':name,
-                                        'date':date,
-                                        'size':size
-                                })
+                    'name':name,
+                    'date':date,
+                    'size':size
+                })
         return info
 
     
     def get_download_link(self, url, print_wait = True):
+        warn_minutes = False
+        info = {}
+        
         if not self.sess.cookies.get('SID'):
             self.login()
-        a = self.sess.get(url)
+        a = self.request(url)
+        if not a:
+            print(make_colors("Get download link [1] Failed !", 'lw', 'r'))
         b = bs(a.content, 'lxml')
         hidden = b.find('input', {'type':'hidden'})
         debug(hidden = hidden)
-        data = {
-                    'adz':hidden.get('value')
-                }
-        a1 = requests.post(url, data=data)
+        data = {'adz':hidden.get('value')}
+        a1 = self.request(url, 'post', data=data)
+        if not a1:
+            print(make_colors("Get download link [2] Failed !", 'lw', 'r'))
+            return False, warn_minutes, info
         content = a1.content
         # debug(content = content)
         b1 = bs(content, 'lxml')
@@ -283,8 +331,6 @@ class onefichier(object):
         warn = b1.find_all('div', {'class':"ct_warn"})
         debug(warn = warn)
         debug(link = link)
-        warn_minutes = False
-        info = {}
         if link:
             info = self.get_download_link_info(b, url)
             if not info:
@@ -336,7 +382,7 @@ class onefichier(object):
             self.login()
         data = []
         url = self.url + 'console/files.pl?dir_id=0&oby=0&search='
-        a = self.sess.get(url)
+        a = self.request(url)
         debug(url = a.url)
         content = a.content
         debug(content = content)
@@ -646,7 +692,7 @@ class onefichier(object):
             data = {
                             'selected[]':id_rel,
                         }
-            a = self.sess.post(url, data=data)
+            a = self.request(url, 'post', data=data)
             content = a.content
             b = bs(content, 'lxml')
             download_link = b.find('textarea').text
@@ -664,7 +710,7 @@ class onefichier(object):
             data = {
                             'selected[]':id_rel,
                         }
-            a = self.sess.post(url, data=data)
+            a = self.request(url, 'post', data=data)
             content = a.content
             headers = a.headers
             filename = re.findall('filename=(.*?)\.csv', headers.get('content-disposition'))
@@ -686,7 +732,7 @@ class onefichier(object):
         if not self.sess.cookies.get('SID'):
             self.login()
         url = self.url + 'console/remote.pl?c=todo'
-        a = self.sess.get(url)
+        a = self.request(url)
         b = bs(a.content, 'lxml')
         data = []
         ru_item = b.find_all('div', {'id':re.compile('d')})
@@ -738,7 +784,7 @@ class onefichier(object):
         if not self.sess.cookies.get('SID'):
             self.login()
         url = self.url + 'console/remote.pl?c=done'
-        a = self.sess.get(url)
+        a = self.request(url)
         b = bs(a.content, 'lxml')
         data = []
         alc = b.find('div', {'class':'alc'})
@@ -784,7 +830,7 @@ class onefichier(object):
                         'selected[]':id_rel
                 }
         debug(data = data)
-        a = self.sess.post(url, data=data)
+        a = self.request(url, 'post', data=data)
         content = a.content
         debug(content = content)
         if 'Files removed' in content:
@@ -808,7 +854,7 @@ class onefichier(object):
             n = 1
             while 1:
                 try:
-                    a = self.sess.post(url, data = data, timeout = timeout)
+                    a = self.request(url, 'post', data = data, timeout = timeout)
                     break
                 except:
                     if not n == retries:
