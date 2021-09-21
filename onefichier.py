@@ -627,32 +627,32 @@ class onefichier(object):
                 sys.exit(make_colors("EXIT !", 'lightwhite', 'lightred'))
                 #sys.exit()
             elif q == 'h' or q == '-h':
-                help_str = """usage: 1fichier.py [-h] [-s SORT_BY] [-r REMOTE_UPLOAD] [-p DOWNLOAD_PATH]
+                help_str = """\t    usage: 1fichier.py [-h] [-s SORT_BY] [-r REMOTE_UPLOAD] [-p DOWNLOAD_PATH]
                         [-d DOWNLOAD] [-w] [-c] [-U USERNAME] [-P PASSWORD]
                         [-x [PROXY [PROXY ...]]] [-nv] [-a] [-http] [-https]
 
-    optional arguments:
-      -h, --help            show this help message and exit
-      -s SORT_BY, --sort-by SORT_BY
-                            Sortby: time/timestamp, date, name, rel, size
-      -r REMOTE_UPLOAD, --remote-upload REMOTE_UPLOAD
-                            Remote Upload
-      -p DOWNLOAD_PATH, --download-path DOWNLOAD_PATH
-                            Download Path or Export save path
-      -d DOWNLOAD, --download DOWNLOAD
-                            Convert Link and download it
-      -w, --wget            Force use wget as downloader
-      -c, --confirm         Confirm before download it (IDM Only)
-      -U USERNAME, --username USERNAME
-                            Username (email) login
-      -P PASSWORD, --password PASSWORD
-                            Password login
-      -x [PROXY [PROXY ...]], --proxy [PROXY [PROXY ...]]
-                            Via Proxy, example: https://192.168.0.1:3128 https://192.168.0.1:3128 ftp://127.0.0.1:33 or {'http':'127.0.0.1:8080', 'https': '10.5.6.7:5656'} or type 'auto' for auto proxy
-      -nv, --no-verify      Use all type of proxy (http or https)
-      -a, --all             Use all type of proxy (http or https) to session
-      -http, --http         Use all type of proxy (http or https) to session and set to http
-      -https, --https       Use all type of proxy (http or https) to session and set to https"""
+                    optional arguments:
+                      -h, --help            show this help message and exit
+                      -s SORT_BY, --sort-by SORT_BY
+                                            Sortby: time/timestamp, date, name, rel, size
+                      -r REMOTE_UPLOAD, --remote-upload REMOTE_UPLOAD
+                                            Remote Upload
+                      -p DOWNLOAD_PATH, --download-path DOWNLOAD_PATH
+                                            Download Path or Export save path
+                      -d DOWNLOAD, --download DOWNLOAD
+                                            Convert Link and download it
+                      -w, --wget            Force use wget as downloader
+                      -c, --confirm         Confirm before download it (IDM Only)
+                      -U USERNAME, --username USERNAME
+                                            Username (email) login
+                      -P PASSWORD, --password PASSWORD
+                                            Password login
+                      -x [PROXY [PROXY ...]], --proxy [PROXY [PROXY ...]]
+                                            Via Proxy, example: https://192.168.0.1:3128 https://192.168.0.1:3128 ftp://127.0.0.1:33 or {'http':'127.0.0.1:8080', 'https': '10.5.6.7:5656'} or type 'auto' for auto proxy
+                      -nv, --no-verify      Use all type of proxy (http or https)
+                      -a, --all             Use all type of proxy (http or https) to session
+                      -http, --http         Use all type of proxy (http or https) to session and set to http
+                      -https, --https       Use all type of proxy (http or https) to session and set to https"""
 
                 print(make_colors(help_str, 'lightcyan'))
 
