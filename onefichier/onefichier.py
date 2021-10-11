@@ -100,7 +100,6 @@ class onefichier(object):
         q = getch.getch()
         if q == 'x' or q == 'q':
             sys.exit(make_colors("EXIT !", 'lw','lr'))
-
     
     def login(self, username=None, password=None, url_code = 'login.pl'):
         if not username:
@@ -152,7 +151,6 @@ class onefichier(object):
         debug(cookies_0 = cookies_0)
         debug(cookies_1 = cookies_1)
         return True
-
     
     def auto_proxy(self, no_verify = False, use_all = False, force_https = False, force_http = False, proxy = {}):
         scheme = urlparse(self.url).scheme
@@ -266,14 +264,12 @@ class onefichier(object):
                 bar.update(100, task = make_colors("ERROR", 'lightwhite', 'lightred'), subtask = make_colors("[ERROR CONNECTION]", 'lightred', 'lightyellow') + " ")
                 sys.exit(make_colors("[ERROR CONNECTION]", 'lightwhite', 'lightred') + make_colors('Try Again !', 'black', 'lightyellow'))
         return proxies
-
     
     def clean_dones(self):
         if not self.sess.cookies.get('SID'):
             self.login()
         url = self.url + "console/remote.pl?r=all"
         return self.request(url)
-
     
     def get_download_link_info(self, bs_object = None, url = None):
         if not bs_object:
@@ -304,7 +300,6 @@ class onefichier(object):
                     'size':size
                 })
         return info
-
     
     def get_download_link(self, url, print_wait = True):
         warn_minutes = False
@@ -375,7 +370,6 @@ class onefichier(object):
                 return False, warn_minutes, info
 
         return False, warn_minutes, info
-
     
     def list(self):
         if not self.sess.cookies.get('SID'):
@@ -421,7 +415,6 @@ class onefichier(object):
         else:
             print(make_colors("No DATA !", "lightwhite", "lightred", ['blink']))
             return False, 0
-
     
     def download(self, url, download_path=os.getcwd(), confirm=False, use_wget=False, name = None):
         if use_wget:
@@ -436,7 +429,6 @@ class onefichier(object):
                     download_path = os.path.join(download_path, name)
                 wget.download(url, download_path)
 
-    
     def navigator(self, username = None, password = None, no_verify = False, use_all = False, force_https = False, force_http = False, proxy = {}, minute_add = None, download_path = os.getcwd(), confirm = False, force_wget = False, q = None, data = None, print_list = True, sort_by = None):
         check_sort_by = ['rel', 'name', 'date', 'size', 'timestamp']
         if not self.sess.cookies.get('SID'):
@@ -627,39 +619,38 @@ class onefichier(object):
                 sys.exit(make_colors("EXIT !", 'lightwhite', 'lightred'))
                 #sys.exit()
             elif q == 'h' or q == '-h':
-                help_str = """usage: 1fichier.py [-h] [-s SORT_BY] [-r REMOTE_UPLOAD] [-p DOWNLOAD_PATH]
+                help_str = """\t    usage: 1fichier.py [-h] [-s SORT_BY] [-r REMOTE_UPLOAD] [-p DOWNLOAD_PATH]
                         [-d DOWNLOAD] [-w] [-c] [-U USERNAME] [-P PASSWORD]
                         [-x [PROXY [PROXY ...]]] [-nv] [-a] [-http] [-https]
 
-    optional arguments:
-      -h, --help            show this help message and exit
-      -s SORT_BY, --sort-by SORT_BY
-                            Sortby: time/timestamp, date, name, rel, size
-      -r REMOTE_UPLOAD, --remote-upload REMOTE_UPLOAD
-                            Remote Upload
-      -p DOWNLOAD_PATH, --download-path DOWNLOAD_PATH
-                            Download Path or Export save path
-      -d DOWNLOAD, --download DOWNLOAD
-                            Convert Link and download it
-      -w, --wget            Force use wget as downloader
-      -c, --confirm         Confirm before download it (IDM Only)
-      -U USERNAME, --username USERNAME
-                            Username (email) login
-      -P PASSWORD, --password PASSWORD
-                            Password login
-      -x [PROXY [PROXY ...]], --proxy [PROXY [PROXY ...]]
-                            Via Proxy, example: https://192.168.0.1:3128 https://192.168.0.1:3128 ftp://127.0.0.1:33 or {'http':'127.0.0.1:8080', 'https': '10.5.6.7:5656'} or type 'auto' for auto proxy
-      -nv, --no-verify      Use all type of proxy (http or https)
-      -a, --all             Use all type of proxy (http or https) to session
-      -http, --http         Use all type of proxy (http or https) to session and set to http
-      -https, --https       Use all type of proxy (http or https) to session and set to https"""
+                    optional arguments:
+                      -h, --help            show this help message and exit
+                      -s SORT_BY, --sort-by SORT_BY
+                                            Sortby: time/timestamp, date, name, rel, size
+                      -r REMOTE_UPLOAD, --remote-upload REMOTE_UPLOAD
+                                            Remote Upload
+                      -p DOWNLOAD_PATH, --download-path DOWNLOAD_PATH
+                                            Download Path or Export save path
+                      -d DOWNLOAD, --download DOWNLOAD
+                                            Convert Link and download it
+                      -w, --wget            Force use wget as downloader
+                      -c, --confirm         Confirm before download it (IDM Only)
+                      -U USERNAME, --username USERNAME
+                                            Username (email) login
+                      -P PASSWORD, --password PASSWORD
+                                            Password login
+                      -x [PROXY [PROXY ...]], --proxy [PROXY [PROXY ...]]
+                                            Via Proxy, example: https://192.168.0.1:3128 https://192.168.0.1:3128 ftp://127.0.0.1:33 or {'http':'127.0.0.1:8080', 'https': '10.5.6.7:5656'} or type 'auto' for auto proxy
+                      -nv, --no-verify      Use all type of proxy (http or https)
+                      -a, --all             Use all type of proxy (http or https) to session
+                      -http, --http         Use all type of proxy (http or https) to session and set to http
+                      -https, --https       Use all type of proxy (http or https) to session and set to https"""
 
                 print(make_colors(help_str, 'lightcyan'))
 
         #raw_input("Enter to Continue")
         print("\n")
         return self.navigator(username, password, no_verify, use_all, force_https, force_http, proxy, minute_add, download_path, confirm, force_wget, sort_by = sort_by)
-
     
     def print_nav(self):
         note1 = make_colors(
@@ -676,13 +667,11 @@ class onefichier(object):
 
         q = raw_input(note1)
         return q		
-
     
     def build_dict(self, seq, key):
         data = dict((d[key], dict(d, index=index)) for (index, d) in enumerate(seq))
         debug(data = data)
         return data
-
     
     def download_link(self, id_rel):
         if not self.sess.cookies.get('SID'):
@@ -700,7 +689,6 @@ class onefichier(object):
             return download_link
         else:
             return False
-
     
     def export(self, id_rel, save_path = os.getcwd()):
         if not self.sess.cookies.get('SID'):
@@ -726,7 +714,6 @@ class onefichier(object):
             return filename
         else:
             return False
-
     
     def check_todo(self):
         if not self.sess.cookies.get('SID'):
@@ -749,15 +736,12 @@ class onefichier(object):
         return data
         #else:
             #sys.exit(make_colors("Check Todo -> No Data !", 'lightwhite', 'lightred', ['blink']))
-
-
     
     def date_to_timestamp(self, datetime_object):
         if sys.version_info.major == 3:
             return datetime_object.timestamp()
         else:
             return time.mktime(datetime_object.timetuple())
-
     
     def format_date(self, date, add = None, format_date = '%Y/%m/%d %H:%M'):
         fdate = datetime.strptime(date, format_date)
@@ -778,7 +762,6 @@ class onefichier(object):
         date_str = datetime.strftime(gdate, '%Y/%m/%d %H:%M')
         timestamp = self.date_to_timestamp(gdate)
         return date_str, timestamp
-
     
     def check_done(self):
         if not self.sess.cookies.get('SID'):
@@ -819,7 +802,6 @@ class onefichier(object):
                         data.append(data_add)
             debug(data = data)
         return data
-
     
     def remove(self, id_rel):
         if not self.sess.cookies.get('SID'):
@@ -837,7 +819,6 @@ class onefichier(object):
             return True
         else:
             return False
-
     
     def remote_upload(self, links, timeout = 3, retries = 10):
         error = False
@@ -867,12 +848,13 @@ class onefichier(object):
                 print(make_colors("please check internet connection !", 'lw', 'r'))
                 return False
             content = a.content
-            print("content =", content)
+            # print("content =", content)
+            print(make_colors(re.sub("<br/>", ": ", str(content)), 'lw', 'bl'))
             if "Can not find any valid link" in content:
                 print(make_colors("Can not find any valid link !", 'lightwhite', 'lightred'))
                 return False
             debug(content = content)
-            check = re.findall('1 recorded links', content)
+            check = re.findall('\d+ recorded links', content)
             debug(check = check)
             if check:
                 bar = progressbar.ProgressBar(max_value = self.max_value, prefix = self.prefix, variables = self.variables)
@@ -903,7 +885,6 @@ class onefichier(object):
             else:
                 return False
         return True	
-
     
     def set_proxy(self, proxy):
         proxy_list = {}
@@ -934,7 +915,6 @@ class onefichier(object):
                                             })
         return proxy_list
 
-    
     def usage(self):
         parser = argparse.ArgumentParser(formatter_class = argparse.RawTextHelpFormatter)
         parser.add_argument('-b', '--sort-by', action = 'store', help = 'Sortby: time/timestamp, date, name, rel, size')
