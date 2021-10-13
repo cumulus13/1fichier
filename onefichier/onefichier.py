@@ -53,6 +53,8 @@ class onefichier(object):
         self.prefix = '{variables.task} >> {variables.subtask}'
         self.variables =  {'task': '--', 'subtask': '--'}
         self.max_value = 10
+        self.status_message = ""
+        self.data = ''
 
     def request(self, url, rtype = 'get', headers = None, data = {}, params = {}, timeout = 3, retries = 10, sleep = 1):
         timeout = timeout or self.config.get_config('policy', 'timeout', '10')
@@ -420,20 +422,28 @@ class onefichier(object):
         if use_wget:
             wget.download(url, download_path)
         else:
-            try:
-                idm = IDMan()
-                idm.download(url, download_path, name, confirm=confirm)
-            except:
-                traceback.format_exc()
-                if name:
-                    download_path = os.path.join(download_path, name)
-                wget.download(url, download_path)
+            if not sys.platform == 'win32':
+                import downloader
+                downloader.download_linux(url, self.config, download_path=download_path, saveas=name, downloader = 'wget')
+            else:
+                try:
+                    idm = IDMan()
+                    idm.download(url, download_path, name, confirm=confirm)
+                except:
+                    traceback.format_exc()
+                    if name:
+                        download_path = os.path.join(download_path, name)
+                    wget.download(url, download_path)
 
-    def navigator(self, username = None, password = None, no_verify = False, use_all = False, force_https = False, force_http = False, proxy = {}, minute_add = None, download_path = os.getcwd(), confirm = False, force_wget = False, q = None, data = None, print_list = True, sort_by = None):
+    def navigator(self, username = None, password = None, no_verify = False, use_all = False, force_https = False, force_http = False, proxy = {}, minute_add = None, download_path = os.getcwd(), confirm = False, force_wget = False, q = None, data = None, print_list = True, sort_by = None, direct_download_number = None):
         check_sort_by = ['rel', 'name', 'date', 'size', 'timestamp']
+        total = 0
         if not self.sess.cookies.get('SID'):
             self.login(username, password)
         debug(sort_by = sort_by)
+        debug(data = data)
+        if self.data:
+            data = self.data
         debug(data = data)
         if not data:
             data, total = self.list()
@@ -446,6 +456,8 @@ class onefichier(object):
 
         #if data:
         debug(data = data)			
+        self.data = data
+        debug(print_list = print_list)
         if print_list and data:
             n = 1
             for i in data:
@@ -459,9 +471,20 @@ class onefichier(object):
                     print(make_colors(number, 'lightcyan') + ". " + make_colors(i.get('name'), 'lightwhite', 'lightblue') + " [" + make_colors(i.get('size'), 'black', 'lightgreen') + "] [" + make_colors(i.get('date'), 'lightwhite', 'magenta') + "]")
                 n += 1
             print(make_colors("TOTAL Size:", 'lw', 'b') + " " + make_colors(str(total) , 'b', 'lg'))
+        debug(direct_download_number = direct_download_number)
+        if isinstance(direct_download_number, list):
+            for d in direct_download_number:
+                if str(d).strip().isdigit():
+                    debug(d = d)
+                    self.navigator(username, password, no_verify, use_all, force_https, force_http, proxy, minute_add, download_path, confirm, force_wget, str(d) + "d", data, False, sort_by)
+        else:
+            if str(direct_download_number).strip().isdigit():
+                self.navigator(username, password, no_verify, use_all, force_https, force_http, proxy, minute_add, download_path, confirm, force_wget, str(direct_download_number).strip() + "d", data, False, sort_by)
+        debug(q = q)
         if not q:
             q = self.print_nav()
         bar = progressbar.ProgressBar(max_value = self.max_value, prefix = self.prefix, variables = self.variables)
+        
         if q:
             q = str(q).strip()
             if q and str(q).isdigit() and int(q) <= len(data):
@@ -489,7 +512,7 @@ class onefichier(object):
                 else:
                     print(make_colors("GENERATE:", 'r', 'lw') + " " + make_colors("FAILED !", 'lw', 'r'))
                 
-            if q and str(q).isdigit() and q[-1] == 'd':
+            elif q and q[-1] == 'd':
                 q = q[:-1]
                 task = make_colors("Download Link", 'lightwhite', 'blue')
                 subtask = make_colors("Get", 'lightwhite', 'magenta') + " "
@@ -507,15 +530,17 @@ class onefichier(object):
                 subtask = make_colors("Convert", 'lightwhite', 'magenta') + " "
                 bar.update(bar.value + 1, task = task, subtask = subtask)
                 download_link = self.get_download_link(link)
+                debug(download_link = download_link)
                 task = make_colors("Download", 'lightwhite', 'blue')
                 subtask = make_colors(name, 'lightred', 'lightyellow') + " "
                 bar.update(bar.value + 1, task = task, subtask = subtask)
+                print(make_colors("DOWNLOAD LINK:", 'b', 'y') + " " + make_colors(download_link[1], 'b', 'c'))
                 if download_link[0]:
                     self.download(download_link[1], download_path, confirm, force_wget, name)
                 else:
                     task = make_colors("Download", 'lightwhite', 'lightred')
                     subtask = make_colors("ERROR Wait for " + download_link[1] + " minutes", 'lightred', 'lightwhite') + " "
-                    bar.update(bar.max_value, task = task, subtask = subtask)					
+                bar.update(bar.max_value, task = task, subtask = subtask)					
             elif str(q).strip()[-1] == 'm':
                 if len(str(q).strip()) > 1:
                     number_selected = str(q).strip()[:-1]
@@ -650,6 +675,7 @@ class onefichier(object):
 
         #raw_input("Enter to Continue")
         print("\n")
+
         return self.navigator(username, password, no_verify, use_all, force_https, force_http, proxy, minute_add, download_path, confirm, force_wget, sort_by = sort_by)
     
     def print_nav(self):
@@ -782,11 +808,22 @@ class onefichier(object):
                 debug(asked_date = asked_date)
                 li = i.find('ul').find('li')
                 debug(li = li)
+                status = None
+                div_status = li.find('div')
+                debug(div_status = div_status)
+                if div_status:
+                    status = div_status.text
+                if status:
+                    debug(status = status)
+                    if "Download failed" in status:
+                        # print(make_colors(status, 'lw', 'r'))
+                        self.status_message = status
+                        return "error"
                 text = li.text
                 debug(text = text)
                 if text:
                     if "Download failed" in text:
-                        return False
+                        return "error"
                     link = re.findall('.*?(https.*?)OK|.*?(http.*?)OK|.*?(ftp.*?)OK', text)
                     if link:
                         links = "".join(link[0])
@@ -821,6 +858,7 @@ class onefichier(object):
             return False
     
     def remote_upload(self, links, timeout = 3, retries = 10):
+        self.status_message = None
         error = False
         if not self.sess.cookies.get('SID'):
             self.login()
@@ -864,6 +902,10 @@ class onefichier(object):
                     data_done = self.check_done()
                     done = False
                     if data_done:
+                        if data_done == 'error':
+                            subtask = make_colors("RemoteUpload", "lightwhite", "magenta") + " " + make_colors("[{}]".format(self.status_message), 'lw', 'r') + " "
+                            bar.update(self.max_value, task = task, subtask = subtask)
+                            break
                         for j in data_done:
                             if j.get('link') == i:
                                 bar.update(self.max_value, task = task, subtask = subtask)
@@ -920,7 +962,8 @@ class onefichier(object):
         parser.add_argument('-b', '--sort-by', action = 'store', help = 'Sortby: time/timestamp, date, name, rel, size')
         parser.add_argument('-r', '--remote-upload', action = 'store', help = 'Remote Upload', nargs = '*')
         parser.add_argument('-p', '--download-path', action = 'store', help = 'Download Path or Export save path', default = os.getcwd())
-        parser.add_argument('-d', '--download', action = 'store', help = 'Convert Link and download it')
+        parser.add_argument('-d', '--download', action = 'store', help = 'Convert Link and download it or direct download with option "-nn"')
+        parser.add_argument('-nn', '--ndownload', action = 'store', help = 'number of list to download', nargs='*')
         parser.add_argument('-g', '--generate', action = 'store', help = 'Convert Link Only')
         parser.add_argument('-C', '--clip', action = 'store', help = 'Convert Link and Copy to clipboard')
         parser.add_argument('-s', '--saveas', action = 'store', help = 'Download and Save as name')
@@ -967,9 +1010,11 @@ class onefichier(object):
                         clipboard.copy(url_download)
                     if args.download:
                         self.download(url_download, args.download_path, args.confirm, args.wget, args.saveas)
+            if args.ndownload:
+                self.navigator(args.username, args.password, args.no_verify, args.all, args.https, args.http, args.proxy, None, args.download_path, args.confirm, args.wget, None, None, False, args.sort_by, args.ndownload)
             else:
                 print("\n")
-                self.navigator(args.username, args.password, args.no_verify, args.all, args.https, args.http, proxy, download_path = args.download_path, confirm = args.confirm, force_wget = args.wget, sort_by = args.sort_by)
+                self.navigator(args.username, args.password, args.no_verify, args.all, args.https, args.http, proxy, download_path = args.download_path, confirm = args.confirm, force_wget = args.wget, sort_by = args.sort_by, direct_download_number=args.ndownload)
 
 def usage():
     c = onefichier()

@@ -3,6 +3,7 @@
 #~*~*encoding:utf-8*~*~
 from __future__ import print_function
 import os, sys
+from unidecode import unidecode
 import requests
 from bs4 import BeautifulSoup as bs
 import argparse
@@ -55,6 +56,36 @@ class onefichier(object):
         self.max_value = 10
         self.status_message = ""
         self.data = ''
+        self.total = 0
+
+    def set_header(self, header_str = None):
+        """generate mediafire url to direct download url
+
+        Args:
+            header_str (str, optional): raw headers data/text from browser on development mode
+
+        Returns:
+            TYPE: dict: headers data
+        """
+
+        if not header_str:
+            header_str ="""accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9
+            accept-encoding: gzip, deflate
+            accept-language: en-US,en;q=0.9,id;q=0.8,ru;q=0.7
+            sec-fetch-dest: empty
+            sec-fetch-mode: cors
+            sec-fetch-site: same-origin
+            sec-fetch-dest: document
+            sec-fetch-user: ?1
+            upgrade-insecure-requests: 1
+            user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.92 Safari/537.36"""
+
+        debug(header_str = header_str)
+        header_str = list(filter(None, re.split("\n|\r|\t\t", header_str)))
+        debug(header_str = header_str)
+        headers = {key.strip():value.strip() for key,value in [re.split(": |:\t", i) for i in header_str]}
+        debug(headers = headers)
+        return headers    
 
     def request(self, url, rtype = 'get', headers = None, data = {}, params = {}, timeout = 3, retries = 10, sleep = 1):
         timeout = timeout or self.config.get_config('policy', 'timeout', '10')
@@ -67,6 +98,10 @@ class onefichier(object):
         error = False
         error_type = ''
         error_full = ''
+        if not headers:
+            headers = self.set_header()
+        debug(headers = headers)
+        
         while 1:
             try:
                 if rtype == 'post':    
@@ -417,6 +452,11 @@ class onefichier(object):
         else:
             print(make_colors("No DATA !", "lightwhite", "lightred", ['blink']))
             return False, 0
+
+    def refresh(self):
+        data, total = self.list()
+        self.data = data
+        self.total = total
     
     def download(self, url, download_path=os.getcwd(), confirm=False, use_wget=False, name = None):
         if use_wget:
@@ -470,6 +510,7 @@ class onefichier(object):
                 else:
                     print(make_colors(number, 'lightcyan') + ". " + make_colors(i.get('name'), 'lightwhite', 'lightblue') + " [" + make_colors(i.get('size'), 'black', 'lightgreen') + "] [" + make_colors(i.get('date'), 'lightwhite', 'magenta') + "]")
                 n += 1
+            total = total or self.total
             print(make_colors("TOTAL Size:", 'lw', 'b') + " " + make_colors(str(total) , 'b', 'lg'))
         debug(direct_download_number = direct_download_number)
         if isinstance(direct_download_number, list):
@@ -488,6 +529,7 @@ class onefichier(object):
         if q:
             q = str(q).strip()
             if q and str(q).isdigit() and int(q) <= len(data):
+                debug("q is digit")
                 task = make_colors("Download Link", 'lightwhite', 'blue')
                 subtask = make_colors("Get", 'lightwhite', 'magenta') + " "
                 bar.update(bar.value + 1, task = task, subtask = subtask)
@@ -511,8 +553,8 @@ class onefichier(object):
                     print(make_colors("DATE    :", 'lw', 'm') + " " + make_colors(download_link[2].get('date'), 'lw', 'm'))
                 else:
                     print(make_colors("GENERATE:", 'r', 'lw') + " " + make_colors("FAILED !", 'lw', 'r'))
-                
-            elif q and q[-1] == 'd':
+            elif q and q[-1:] == 'd' and q[:-1].isdigit():
+                debug("q containt 'd'")
                 q = q[:-1]
                 task = make_colors("Download Link", 'lightwhite', 'blue')
                 subtask = make_colors("Get", 'lightwhite', 'magenta') + " "
@@ -541,26 +583,16 @@ class onefichier(object):
                     task = make_colors("Download", 'lightwhite', 'lightred')
                     subtask = make_colors("ERROR Wait for " + download_link[1] + " minutes", 'lightred', 'lightwhite') + " "
                 bar.update(bar.max_value, task = task, subtask = subtask)					
-            elif str(q).strip()[-1] == 'm':
+            elif q and q[-1:] == 'm' and q[:-1].isdigit():
+                debug("q containt 'm'")
                 if len(str(q).strip()) > 1:
                     number_selected = str(q).strip()[:-1]
                 else:
                     number_selected = raw_input(make_colors("Select number to remove: ", 'lightwhite', 'lightred'))
 
                 if number_selected and str(number_selected).isdigit() and int(number_selected) <= len(data):
-                    if sort_by and str(sort_by).lower().strip() in data.get(list(data.keys())[0]).keys():
-                        debug(data_selected = data.get(list(data.keys())[int(number_selected) - 1]))
-                        rel = data.get(list(data.keys())[int(number_selected) - 1]).get('rel')
-                        subtask = make_colors(data.get(list(data.keys())[int(number_selected) - 1]).get('name'), 'lightwhite', 'blue') + " "
-                    else:
-                        rel = data[int(number_selected) - 1].get('rel')
-                        subtask = make_colors(data[int(number_selected) - 1].get('name'), 'lightwhite', 'blue') + " "
-                    task = make_colors("Deleting", "lightwhite", "lightred")						
-                    bar.update(5, task = task, subtask = subtask)
-                    #raw_input("Enter to Continue")
-                    debug(rel = rel)
-                    self.remove(rel)
-                    bar.update(bar.max_value, task = task, subtask = subtask)
+                    self._remove(number_selected, data, sort_by, bar)
+                    self.refresh()
 
                 elif "," in number_selected or " " in number_selected:
                     number_selected = re.sub(" ", "", number_selected)
@@ -570,20 +602,7 @@ class onefichier(object):
                         bar.max_value = len(list_number_selected)
                         number_selected = str(i).strip()
                         if number_selected and str(number_selected).isdigit() and int(number_selected) <= len(data):
-                            #print("str(sort_by).lower().strip() =", str(sort_by).lower().strip())
-                            #print("data.get(list(data.keys())[0]).keys() =", data.get(list(data.keys())[0]).keys())
-                            if sort_by and str(sort_by).lower().strip() in data.get(list(data.keys())[0]).keys():
-                                debug(data_selected = data.get(list(data.keys())[int(number_selected) - 1]))
-                                rel = data.get(list(data.keys())[int(number_selected) - 1]).get('rel')
-                                subtask = make_colors(data.get(list(data.keys())[int(number_selected) - 1]).get('name'), 'lightwhite', 'blue') + " "
-                            else:
-                                rel = data[int(number_selected) - 1].get('rel')
-                                subtask = make_colors(data[int(number_selected) - 1].get('name'), 'lightwhite', 'blue') + " "
-
-                            task = make_colors("Deleting", "lightwhite", "lightred")
-                            debug(rel = rel)
-                            self.remove(rel)
-                            bar.update(bar.value + 1, task = task, subtask = subtask)
+                            self._remove(number_selected, data, sort_by, bar)
                         else:
                             task = make_colors("Deleting", "lightwhite", "lightred")
                             subtask = make_colors("ERROR", 'lightwhite', 'lightred') + " "
@@ -596,12 +615,64 @@ class onefichier(object):
                     debug(number_selected = number_selected)
                     list_number_selected = list(range(int(number_selected[0]), (int(number_selected[1]) + 1)))
                     debug(list_number_selected = list_number_selected)
-                    list_number_selected_str = str(list_number_selected)[1:-1] + "m"
-                    debug(list_number_selected_str = list_number_selected_str)
+                    # list_number_selected_str = str(list_number_selected)[1:-1] + "m"
+                    # debug(list_number_selected_str = list_number_selected_str)
+                    for i in list_number_selected:
+                        bar.max_value = len(list_number_selected)
+                        number_selected = str(i).strip()
+                        if number_selected and str(number_selected).isdigit() and int(number_selected) <= len(data):
+                            self._remove(number_selected, data, sort_by, bar)
+                        else:
+                            task = make_colors("Deleting", "lightwhite", "lightred")
+                            subtask = make_colors("ERROR", 'lightwhite', 'lightred') + " "
+                            bar.update(bar.value + 1, task = task, subtask = subtask)
+                    # return self.navigator(username, password, no_verify, use_all, force_https, force_http, proxy, minute_add, download_path, confirm, force_wget, list_number_selected_str, data, False, sort_by = sort_by)
+            elif "rn" in q or "rn=" in q or "rn =" in q:
+                debug("q containt 'rn'")
+                number_selected = ''
+                new_name = ''
+                data_rename = re.split("rn=|rn =|rn = |rn= ", q)
+                data_rename = filter(None, data_rename)
+                debug(data_rename = data_rename)
+                if len(data_rename) == 2:
+                    number_selected = data_rename[0]
+                    debug(number_selected = number_selected)
+                    new_name = data_rename[1]
+                    if number_selected.isdigit():
+                        number_selected = int(number_selected)
+                    else:
+                        number_selected = raw_input(make_colors("Select number rename to {}:".format(new_name), 'lw', 'r') + " ")
+                        if number_selected:
+                            if number_selected.isdigit():
+                                number_selected = int(number_selected)
 
-                    return self.navigator(username, password, no_verify, use_all, force_https, force_http, proxy, minute_add, download_path, confirm, force_wget, list_number_selected_str, data, False, sort_by = sort_by)
-
-            elif str(q).strip()[-1] == 'e':
+                elif len(data_rename) == 1:
+                    number_selected = data_rename[0]
+                    if number_selected.isdigit():
+                        number_selected = int(number_selected)
+                    else:
+                        new_name = raw_input(make_colors("new name to:", 'lw', 'r') + " ")
+                        number_selected = raw_input(make_colors("Select number rename to {}:".format(new_name), 'lw', 'r') + " ")
+                        if number_selected:
+                            if number_selected.isdigit():
+                                number_selected = int(number_selected)
+                if number_selected and new_name:
+                    if number_selected and int(number_selected) <= len(data):
+                        if sort_by and str(sort_by).lower().strip() in data.get(list(data.keys())[0]).keys():
+                            debug(data_selected = data.get(list(data.keys())[int(number_selected) - 1]))
+                            rel = data.get(list(data.keys())[int(number_selected) - 1]).get('rel')
+                            subtask = make_colors(new_name, 'lightwhite', 'blue') + " "
+                        else:
+                            rel = data[int(number_selected) - 1].get('rel')
+                            subtask = make_colors(new_name, 'lightwhite', 'blue') + " "
+                        task = make_colors("Rename to", "lightwhite", "lightred")                        
+                        bar.update(5, task = task, subtask = subtask)
+                        #raw_input("Enter to Continue")
+                        debug(rel = rel)
+                        self.rename(rel, new_name)
+                        bar.update(bar.max_value, task = task, subtask = subtask)
+            elif q and q[-1:] == 'e' and q[:-1].isdigit():
+                debug("q containt 'e'")
                 if len(str(q).strip()) > 1:
                     number_selected = str(q).strip()[:-1]
                 else:
@@ -627,16 +698,16 @@ class onefichier(object):
                 debug(rel = rel)
                 self.export(rel, download_path)
                 bar.update(bar.max_value, task = task, subtask = subtask)
-
             elif q == 'r':
+                debug("q is 'r'")
                 qr = raw_input(make_colors("Input Remote URL: ", 'lightwhite', 'blue'))
                 if qr:
                     if qr.strip() == 'c':
                         qr = clipboard.paste()
                     if 'http' in qr or 'ftp' in qr:
                         self.remote_upload(str(qr))
-
             elif q == 'x' or q == 'q':
+                debug("q containt 'x' or 'q'")
                 task = make_colors("EXIT", 'lightwhite', 'lightred')
                 subtask = make_colors("System Exit !", 'lightwhite', 'lightred') + " "
                 bar.update(self.max_value, task = task, subtask = subtask)
@@ -644,6 +715,8 @@ class onefichier(object):
                 sys.exit(make_colors("EXIT !", 'lightwhite', 'lightred'))
                 #sys.exit()
             elif q == 'h' or q == '-h':
+                debug("q containt 'h' or '-h")
+                print(make_colors("command line option help", 'lw', 'r'))
                 help_str = """\t    usage: 1fichier.py [-h] [-s SORT_BY] [-r REMOTE_UPLOAD] [-p DOWNLOAD_PATH]
                         [-d DOWNLOAD] [-w] [-c] [-U USERNAME] [-P PASSWORD]
                         [-x [PROXY [PROXY ...]]] [-nv] [-a] [-http] [-https]
@@ -675,7 +748,7 @@ class onefichier(object):
 
         #raw_input("Enter to Continue")
         print("\n")
-
+        self.refresh()
         return self.navigator(username, password, no_verify, use_all, force_https, force_http, proxy, minute_add, download_path, confirm, force_wget, sort_by = sort_by)
     
     def print_nav(self):
@@ -684,6 +757,7 @@ class onefichier(object):
         make_colors("[n] = generate download link", 'b', 'lc') + ", " +\
         make_colors("[n]d = download it", 'b', 'ly') + ", " +\
         make_colors("[n]m = remove n", 'lightwhite', 'lightred') + ", " +\
+        make_colors("[n]rn = rename n", 'lightwhite', 'blue') + ", " +\
         make_colors("r = remote upload", "lightwhite", 'magenta') + ", " +\
         make_colors("[n]e = Export n to file .csv", 'red', "lightyellow") + ", " +\
         make_colors('h|-h = Print command help', 'black', 'lightgreen') + ", " +\
@@ -749,6 +823,7 @@ class onefichier(object):
         b = bs(a.content, 'lxml')
         data = []
         ru_item = b.find_all('div', {'id':re.compile('d')})
+        debug(ru_item = ru_item)
         if ru_item:
             for i in ru_item:
                 div_url = i.find('div', {'class':'url'})
@@ -856,8 +931,45 @@ class onefichier(object):
             return True
         else:
             return False
+
+    def _remove(self, number_selected, data, sort_by, bar):
+        # if number_selected and str(number_selected).isdigit() and int(number_selected) <= len(data):
+        if sort_by and str(sort_by).lower().strip() in data.get(list(data.keys())[0]).keys():
+            debug(data_selected = data.get(list(data.keys())[int(number_selected) - 1]))
+            rel = data.get(list(data.keys())[int(number_selected) - 1]).get('rel')
+            name = unidecode(data.get(list(data.keys())[int(number_selected) - 1]).get('name'))
+            subtask = make_colors(name, 'lightwhite', 'blue') + " "
+        else:
+            rel = data[int(number_selected) - 1].get('rel')
+            name = unidecode(data[int(number_selected) - 1].get('name'))
+            subtask = make_colors(name, 'lightwhite', 'blue') + " "
+        task = make_colors("Deleting", "lightwhite", "lightred")                        
+        bar.update(5, task = task, subtask = subtask)
+        #raw_input("Enter to Continue")
+        debug(rel = rel)
+        self.remove(rel)
+        bar.update(bar.max_value, task = task, subtask = subtask)
     
-    def remote_upload(self, links, timeout = 3, retries = 10):
+    def rename(self, id_rel, new_name):
+        if not self.sess.cookies.get('SID'):
+            self.login()
+        url = self.url + 'console/frename.pl'
+        data = {
+            'newname': new_name,
+            'file': id_rel
+        }
+        debug(data = data)
+        a = self.request(url, 'post', data=data)
+        content = a.content
+        debug(content = content)
+        if 'File renamed successfully' in content:
+            return True
+        else:
+            return False
+    
+    def remote_upload(self, links, timeout = 3, retries = 10, renameit = None):
+        data, total = self.list()
+        self.data = data
         self.status_message = None
         error = False
         if not self.sess.cookies.get('SID'):
@@ -869,11 +981,11 @@ class onefichier(object):
         for i in links:
             if i == 'c':
                 i = clipboard.paste()
-            data = {'links': i }
+            post_data = {'links': i }
             n = 1
             while 1:
                 try:
-                    a = self.request(url, 'post', data = data, timeout = timeout)
+                    a = self.request(url, 'post', data = post_data, timeout = timeout)
                     break
                 except:
                     if not n == retries:
@@ -926,6 +1038,32 @@ class onefichier(object):
                             time.sleep(2)
             else:
                 return False
+        debug(renameit = renameit)
+        
+        if renameit:
+            all_prev_name = []
+            all_new_name = []
+            new_items = []
+            debug(self_data = self.data)
+            for i in self.data:
+                all_prev_name.append(i.get('name'))
+            data, total = self.list()
+            self.data = data
+            for i in self.data:
+                all_new_name.append(i.get('name'))
+            debug(all_prev_name = all_prev_name)
+            debug(all_new_name = all_new_name)
+            for name in all_new_name:
+                if not name in all_prev_name:
+                    index = all_new_name.index(name)
+                    new_items.append(self.data[index])
+            debug(new_items = new_items)
+            
+            if len(new_items) == 1:
+                self.rename(new_items[0].get('rel'), renameit)
+                data, total = self.list()
+                self.data = data
+        
         return True	
     
     def set_proxy(self, proxy):
@@ -961,6 +1099,7 @@ class onefichier(object):
         parser = argparse.ArgumentParser(formatter_class = argparse.RawTextHelpFormatter)
         parser.add_argument('-b', '--sort-by', action = 'store', help = 'Sortby: time/timestamp, date, name, rel, size')
         parser.add_argument('-r', '--remote-upload', action = 'store', help = 'Remote Upload', nargs = '*')
+        parser.add_argument('-n', '--rename', action = 'store', help = 'Rename after/or/and Remote Upload')
         parser.add_argument('-p', '--download-path', action = 'store', help = 'Download Path or Export save path', default = os.getcwd())
         parser.add_argument('-d', '--download', action = 'store', help = 'Convert Link and download it or direct download with option "-nn"')
         parser.add_argument('-nn', '--ndownload', action = 'store', help = 'number of list to download', nargs='*')
@@ -992,7 +1131,7 @@ class onefichier(object):
                 debug(proxy = proxy)
                 self.sess.proxies = proxy
             if args.remote_upload:
-                self.remote_upload(args.remote_upload)
+                self.remote_upload(args.remote_upload, renameit = args.rename)
             if args.download or args.generate:
                 if args.download:
                     data = self.get_download_link(args.download)
