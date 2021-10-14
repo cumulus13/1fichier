@@ -18,6 +18,7 @@ import clipboard
 import re
 import traceback
 import time
+import bitmath
 if sys.version_info.major == 3:
     raw_input = input
     from urllib.parse import urlparse
@@ -486,6 +487,7 @@ class onefichier(object):
         if self.data:
             data = self.data
         debug(data = data)
+        
         if not data:
             data, total = self.list()
             debug(data = data)
@@ -494,11 +496,28 @@ class onefichier(object):
             if sort_by and sort_by in check_sort_by:
                 debug(sort_by = sort_by)
                 data1 = self.build_dict(data, key = str(sort_by))			
-                data = sorted(data, key=lambda y: y.get('date'))
-
-        #if data:
+                data = sorted(data, key=lambda y: y.get(sort_by))
+                debug(data = data)
+        else:
+            self.data = data
+            debug("data is it")
+            if sort_by:
+                debug(sort_by = sort_by)
+                
+                data, total = self.list()
+                if str(sort_by).lower().strip() == 'time':
+                    sort_by = 'timestamp'
+                if sort_by and sort_by in check_sort_by:
+                    if sort_by == 'size':
+                        data1 = self.build_dict(data, key = str(sort_by))           
+                        data = sorted(data, key=lambda y: bitmath.parse_string_unsafe(y.get(sort_by)).kB.value)
+                else:
+                    data1 = self.build_dict(data, key = str(sort_by))           
+                    data = sorted(data, key=lambda y: y.get(sort_by))
+        
+        
         debug(data = data)			
-        self.data = data
+        
         debug(print_list = print_list)
         if print_list and data:
             n = 1
@@ -710,13 +729,17 @@ class onefichier(object):
                         self.remote_upload(str(qr))
             elif q == "s" in q or "s=" in q or "s =" in q:
                 debug("q is 's'")
-                debug("q containt 'rn'")
-                number_selected = ''
-                new_name = ''
-                data_rename = re.split("rn=|rn =|rn = |rn= ", q)
-                data_rename = filter(None, data_rename)
-                debug(data_rename = data_rename)
-                if len(data_rename) == 2:
+                sort_by = re.split("s=|s =|s = |s= ", q)
+                sort_by = filter(None, sort_by)
+                debug(sort_by = sort_by)
+                
+                if sort_by:
+                    sort_by = sort_by[0].strip()
+                if not sort_by:
+                    sort_by = raw_input(make_colors("Sortby ['rel', 'name', 'date', 'size', 'timestamp']:", 'lw', 'r') + " ")
+                    sort_by = sort_by.strip()
+                debug(sort_by = sort_by)
+                
                 return self.navigator(username, password, no_verify, use_all, force_https, force_http, proxy, minute_add, download_path, confirm, force_wget, sort_by = sort_by)
             elif q == 'x' or q == 'q':
                 debug("q containt 'x' or 'q'")
