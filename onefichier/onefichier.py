@@ -475,9 +475,10 @@ class onefichier(object):
                         download_path = os.path.join(download_path, name)
                     wget.download(url, download_path)
 
-    def navigator(self, username = None, password = None, no_verify = False, use_all = False, force_https = False, force_http = False, proxy = {}, minute_add = None, download_path = os.getcwd(), confirm = False, force_wget = False, q = None, data = None, print_list = True, sort_by = None, direct_download_number = None):
+    def navigator(self, username = None, password = None, no_verify = False, use_all = False, force_https = False, force_http = False, proxy = {}, minute_add = None, download_path = os.getcwd(), confirm = False, force_wget = False, q = None, data = None, print_list = True, sort_by = 'date', direct_download_number = None):
         check_sort_by = ['rel', 'name', 'date', 'size', 'timestamp']
         total = 0
+        data1 = {}
         if not self.sess.cookies.get('SID'):
             self.login(username, password)
         debug(sort_by = sort_by)
@@ -492,7 +493,8 @@ class onefichier(object):
                 sort_by = 'timestamp'
             if sort_by and sort_by in check_sort_by:
                 debug(sort_by = sort_by)
-                data = self.build_dict(data, key = str(sort_by))			
+                data1 = self.build_dict(data, key = str(sort_by))			
+                data = sorted(data, key=lambda y: y.get('date'))
 
         #if data:
         debug(data = data)			
@@ -505,10 +507,10 @@ class onefichier(object):
                     number = "0" + str(n)
                 else:
                     number = str(n)
-                if sort_by and str(sort_by).lower().strip() in data.get(list(data.keys())[0]).keys():
-                    print(make_colors(number, 'lightcyan') + ". " + make_colors(data.get(i).get('name'), 'lightwhite', 'lightblue') + " [" + make_colors(data.get(i).get('size'), 'black', 'lightgreen') + "] [" + make_colors(data.get(i).get('date'), 'lightwhite', 'magenta') + "]")
-                else:
-                    print(make_colors(number, 'lightcyan') + ". " + make_colors(i.get('name'), 'lightwhite', 'lightblue') + " [" + make_colors(i.get('size'), 'black', 'lightgreen') + "] [" + make_colors(i.get('date'), 'lightwhite', 'magenta') + "]")
+                # if sort_by and str(sort_by).lower().strip() in data1.get(list(data1.keys())[0]).keys():
+                #     print(make_colors(number, 'lightcyan') + ". " + make_colors(data.get(i).get('name'), 'lightwhite', 'lightblue') + " [" + make_colors(data.get(i).get('size'), 'black', 'lightgreen') + "] [" + make_colors(data.get(i).get('date'), 'lightwhite', 'magenta') + "]")
+                # else:
+                print(make_colors(number, 'lightcyan') + ". " + make_colors(i.get('name'), 'lightwhite', 'lightblue') + " [" + make_colors(i.get('size'), 'black', 'lightgreen') + "] [" + make_colors(i.get('date'), 'lightwhite', 'magenta') + "]")
                 n += 1
             total = total or self.total
             print(make_colors("TOTAL Size:", 'lw', 'b') + " " + make_colors(str(total) , 'b', 'lg'))
@@ -706,6 +708,16 @@ class onefichier(object):
                         qr = clipboard.paste()
                     if 'http' in qr or 'ftp' in qr:
                         self.remote_upload(str(qr))
+            elif q == "s" in q or "s=" in q or "s =" in q:
+                debug("q is 's'")
+                debug("q containt 'rn'")
+                number_selected = ''
+                new_name = ''
+                data_rename = re.split("rn=|rn =|rn = |rn= ", q)
+                data_rename = filter(None, data_rename)
+                debug(data_rename = data_rename)
+                if len(data_rename) == 2:
+                return self.navigator(username, password, no_verify, use_all, force_https, force_http, proxy, minute_add, download_path, confirm, force_wget, sort_by = sort_by)
             elif q == 'x' or q == 'q':
                 debug("q containt 'x' or 'q'")
                 task = make_colors("EXIT", 'lightwhite', 'lightred')
@@ -759,6 +771,7 @@ class onefichier(object):
         make_colors("[n]m = remove n", 'lightwhite', 'lightred') + ", " +\
         make_colors("[n]rn = rename n", 'lightwhite', 'blue') + ", " +\
         make_colors("r = remote upload", "lightwhite", 'magenta') + ", " +\
+        make_colors("s = sort by 'rel', 'name', 'date', 'size', 'timestamp'", 'r', "lw") + ", " +\
         make_colors("[n]e = Export n to file .csv", 'red', "lightyellow") + ", " +\
         make_colors('h|-h = Print command help', 'black', 'lightgreen') + ", " +\
         make_colors("e[x]it|[q]uit = exit|quit", 'lightred') + ", " +\
@@ -770,7 +783,7 @@ class onefichier(object):
     
     def build_dict(self, seq, key):
         data = dict((d[key], dict(d, index=index)) for (index, d) in enumerate(seq))
-        debug(data = data)
+        debug(data_build_dict = data)
         return data
     
     def download_link(self, id_rel):
@@ -1089,16 +1102,17 @@ class onefichier(object):
                     #if ":" in netloc:
                         #netloc = netloc.split(":")[0]
                     proxy_list.update(
-                                            {
-                                                scheme:scheme + "://" + netloc,
-                                                'http': 'http://' + netloc,
-                                            })
+                        {
+                            scheme:scheme + "://" + netloc,
+                            'http': 'http://' + netloc,
+                        }
+                    )
         return proxy_list
 
     def usage(self):
         parser = argparse.ArgumentParser(formatter_class = argparse.RawTextHelpFormatter)
         parser.add_argument('-b', '--sort-by', action = 'store', help = 'Sortby: time/timestamp, date, name, rel, size')
-        parser.add_argument('-r', '--remote-upload', action = 'store', help = 'Remote Upload', nargs = '*')
+        parser.add_argument('-r', '--remote-upload', action = 'store', help = 'Remote Upload, "c" = get url from clipboard ', nargs = '*')
         parser.add_argument('-n', '--rename', action = 'store', help = 'Rename after/or/and Remote Upload')
         parser.add_argument('-p', '--download-path', action = 'store', help = 'Download Path or Export save path', default = os.getcwd())
         parser.add_argument('-d', '--download', action = 'store', help = 'Convert Link and download it or direct download with option "-nn"')
@@ -1131,6 +1145,8 @@ class onefichier(object):
                 debug(proxy = proxy)
                 self.sess.proxies = proxy
             if args.remote_upload:
+                if args.remote_upload == ["c"]:
+                    args.remote_upload = [clipboard.paste()]
                 self.remote_upload(args.remote_upload, renameit = args.rename)
             if args.download or args.generate:
                 if args.download:
