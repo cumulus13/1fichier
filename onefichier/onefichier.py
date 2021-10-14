@@ -1134,7 +1134,7 @@ class onefichier(object):
 
     def usage(self):
         parser = argparse.ArgumentParser(formatter_class = argparse.RawTextHelpFormatter)
-        parser.add_argument('-b', '--sort-by', action = 'store', help = 'Sortby: time/timestamp, date, name, rel, size')
+        parser.add_argument('-b', '--sort-by', action = 'store', help = 'Sortby: time/timestamp, date, name, rel, size', default = 'time')
         parser.add_argument('-r', '--remote-upload', action = 'store', help = 'Remote Upload, "c" = get url from clipboard ', nargs = '*')
         parser.add_argument('-n', '--rename', action = 'store', help = 'Rename after/or/and Remote Upload')
         parser.add_argument('-p', '--download-path', action = 'store', help = 'Download Path or Export save path', default = os.getcwd())
@@ -1171,6 +1171,7 @@ class onefichier(object):
                 if args.remote_upload == ["c"]:
                     args.remote_upload = [clipboard.paste()]
                 self.remote_upload(args.remote_upload, renameit = args.rename)
+                self.refresh()
             if args.download or args.generate:
                 if args.download:
                     data = self.get_download_link(args.download)
