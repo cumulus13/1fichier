@@ -409,19 +409,37 @@ class onefichier(object):
 
         return False, warn_minutes, info
     
-    def list(self):
+    def list(self, retries = 5):
         if not self.sess.cookies.get('SID'):
             self.login()
         data = []
         url = self.url + 'console/files.pl?dir_id=0&oby=0&search='
-        a = self.request(url)
-        debug(url = a.url)
-        content = a.content
-        debug(content = content)
-        debug(SID = self.sess.cookies.get('SID'))
-        b = bs(content, 'lxml')
-        sable = b.find('ul', {'id':'sable'}).find_all('li')
-        debug(sable = sable)
+        n = 1
+        error = False
+        while 1:
+            try:
+                a = self.request(url)
+                debug(url = a.url)
+                content = a.content
+                debug(content = content)
+                debug(SID = self.sess.cookies.get('SID'))
+                b = bs(content, 'lxml')
+                sable = b.find('ul', {'id':'sable'}).find_all('li')
+                debug(sable = sable)
+                break
+            except:
+                self.login()
+                if not n == retries:
+                    n+=1
+                else:
+                    with open("error_list.html", 'wb') as ff:
+                        ff.write(content)
+                    error = True
+                    break
+                time.sleep(1)
+        if error:
+            print(make_colors("[1fichier]", 'r', 'y') + " " + make_colors("Failed to get Data ! [max attempt]", 'lw', 'r'))
+            return []
         sizes = []
         total = 0
         if sable:
@@ -455,15 +473,21 @@ class onefichier(object):
             return False, 0
 
     def refresh(self, sort_by = 'time'):
+        check_sort_by = ['rel', 'name', 'date', 'size', 'timestamp/time']
         data, total = self.list()
+        debug(data = data)
+        debug(sort_by = sort_by)
         if str(sort_by).lower().strip() == 'time':
             sort_by = 'timestamp'
-        if sort_by and sort_by in check_sort_by:
+        debug(sort_by_check = re.findall(sort_by, " ".join(check_sort_by), re.I))
+        if sort_by and re.findall(sort_by, " ".join(check_sort_by), re.I):
             debug(sort_by = sort_by)
             data = sorted(data, key=lambda y: y.get(sort_by))
             debug(data = data)
         self.data = data
         self.total = total
+        # pause()
+        return data, total
     
     def download(self, url, download_path=os.getcwd(), confirm=False, use_wget=False, name = None):
         if use_wget:
@@ -484,7 +508,7 @@ class onefichier(object):
 
     def navigator(self, username = None, password = None, no_verify = False, use_all = False, force_https = False, force_http = False, proxy = {}, minute_add = None, download_path = os.getcwd(), confirm = False, force_wget = False, q = None, data = None, print_list = True, sort_by = 'date', direct_download_number = None):
         check_sort_by = ['rel', 'name', 'date', 'size', 'timestamp']
-        total = 0
+        total = self.total or 0
         if not self.sess.cookies.get('SID'):
             self.login(username, password)
         debug(sort_by = sort_by)
@@ -495,31 +519,29 @@ class onefichier(object):
         
         if not data:
             data, total = self.list()
+            self.data = data
             debug(data = data)
-            if str(sort_by).lower().strip() == 'time':
-                sort_by = 'timestamp'
-            if sort_by and sort_by in check_sort_by:
-                debug(sort_by = sort_by)
-                data = sorted(data, key=lambda y: y.get(sort_by))
-                debug(data = data)
+            
         else:
             self.data = data
             debug("data is it")
-            if sort_by:
-                debug(sort_by = sort_by)
-                
-                data, total = self.list()
-                if str(sort_by).lower().strip() == 'time':
-                    sort_by = 'timestamp'
-                if sort_by and sort_by in check_sort_by:
-                    if sort_by == 'size':
-                        data = sorted(data, key=lambda y: bitmath.parse_string_unsafe(y.get(sort_by)).kB.value)
-                else:
-                    data = sorted(data, key=lambda y: y.get(sort_by))
+        if sort_by:
+            debug(sort_by = sort_by)
+            data, total = self.list()
+            
+        if str(sort_by).lower().strip() == 'time':
+            sort_by = 'timestamp'
+        debug(sort_by_check = re.findall(sort_by, " ".join(check_sort_by), re.I))
+        if sort_by and len(re.findall(sort_by, " ".join(check_sort_by), re.I)) == 1:
+            debug(sort_by = sort_by)
+            if sort_by == 'size':
+                data = sorted(data, key=lambda y: bitmath.parse_string_unsafe(y.get(sort_by)).kB.value)
+            else:
+                data = sorted(data, key=lambda y: y.get(sort_by))
         
         
         debug(data = data)			
-        
+        # pause()
         debug(print_list = print_list)
         if print_list and data:
             n = 1
@@ -639,7 +661,6 @@ class onefichier(object):
                             task = make_colors("Deleting", "lightwhite", "lightred")
                             subtask = make_colors("ERROR", 'lightwhite', 'lightred') + " "
                             bar.update(bar.value + 1, task = task, subtask = subtask)
-
             elif "rn" in q or "rn=" in q or "rn =" in q:
                 debug("q containt 'rn'")
                 number_selected = ''
@@ -669,19 +690,20 @@ class onefichier(object):
                         if number_selected:
                             if number_selected.isdigit():
                                 number_selected = int(number_selected)
+
                 if number_selected and new_name:
                     if number_selected and int(number_selected) <= len(data):
                         rel = data[int(number_selected) - 1].get('rel')
                         
-                        
                         task = make_colors("Rename to", "lightwhite", "lightred")                        
-                        bar.update(5, task = task, subtask = subtask)
+                        subtask = make_colors(new_name, 'lightwhite', 'blue') + " "    
+                        bar.update(bar.max_value/2, task = task, subtask = subtask)
                         #raw_input("Enter to Continue")
                         debug(rel = rel)
                         if self.rename(rel, new_name):
-                            subtask = make_colors(new_name + " [SUCCESS]", 'lightwhite', 'blue') + " "    
+                            subtask = make_colors(new_name, 'lightwhite', 'blue') + " " + make_colors("[SUCCESS]", 'b', 'lg') + " "    
                         else:
-                            subtask = make_colors(new_name + " [ERROR:FAILED]", 'lightwhite', 'blue') + " "    
+                            subtask = make_colors(new_name, 'lightwhite', 'blue') + " " + make_colors("[ERROR:FAILED]", 'lw', 'r') + " "    
                         bar.update(bar.max_value, task = task, subtask = subtask)
             elif q and q[-1:] == 'e' and q[:-1].isdigit():
                 debug("q containt 'e'")
@@ -769,7 +791,8 @@ class onefichier(object):
 
         #raw_input("Enter to Continue")
         print("\n")
-        self.refresh(sort_by)
+        self.data, self.total = self.refresh(sort_by)
+        # return self.navigator(username, password, no_verify, use_all, force_https, force_http, proxy, minute_add, download_path, confirm, force_wget, q, data, print_list, sort_by, direct_download_number)
         return self.navigator(username, password, no_verify, use_all, force_https, force_http, proxy, minute_add, download_path, confirm, force_wget, sort_by = sort_by)
     
     def print_nav(self):
@@ -957,7 +980,7 @@ class onefichier(object):
     def _remove(self, number_selected, data, sort_by, bar):
         # if number_selected and str(number_selected).isdigit() and int(number_selected) <= len(data):
         debug(data_selected = data[int(number_selected) - 1])
-        link = self.download_link(data[int(number_selected) - 1].get('rel'))
+        rel = data[int(number_selected) - 1].get('rel')
         name = unidecode(data[int(number_selected) - 1].get('name'))
         
         subtask = make_colors(name, 'lightwhite', 'blue') + " "
