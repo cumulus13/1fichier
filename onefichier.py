@@ -25,6 +25,7 @@ if sys.version_info.major == 3:
 else:
     from urlparse import urlparse
 import ast
+import json
 from datetime import datetime
 import size as Size
 import inspect
@@ -58,6 +59,7 @@ class onefichier(object):
         self.status_message = ""
         self.data = ''
         self.total = 0
+        self.use_proxy = False
 
     def set_header(self, header_str = None):
         """generate mediafire url to direct download url
@@ -140,6 +142,18 @@ class onefichier(object):
             sys.exit(make_colors("EXIT !", 'lw','lr'))
     
     def login(self, username=None, password=None, url_code = 'login.pl'):
+        cookies = ''
+        if self.config.get_config('cookies', 'cookies'):
+            try:
+                cookies = json.loads(self.config.get_config('cookies', 'cookies'))
+            except:
+                try:
+                    cookies = ast.literal_eval(self.config.get_config('cookies', 'cookies'))
+                except:
+                    pass
+        if cookies:
+            self.sess.cookies.update(cookies)
+            return True
         if not username:
             username = self.config.get_config('auth', 'username')
         if not password:
@@ -155,37 +169,49 @@ class onefichier(object):
                 self.config.write_config('auth', 'password', password)
         url = self.url + url_code
         data = {
-                    'mail':username,
-                        'pass':password,
-                        'lt':'on',
-                        'purge':'on',
-                        'valider':'OK'
-                }
+            'mail':username,
+            'pass':password,
+            'lt':'on',
+            'purge':'on',
+            'valider':'OK'
+        }
 
         debug(data = data)
 
         #a = self.sess.post(url, data = data)
         a = self.request(url, data = data, rtype = 'post')
-        if not a:
-            print(make_colors("Login Failed !", 'lw', 'r'))
-            sys.exit()
-        debug(sess_proxy = self.sess.proxies)
+        debug(a = a)
+        # print("CONTENT:")
+        # print(a.content)
         content = a.content
+        debug(content = content)
         b = bs(content, 'lxml')
+        debug(sess_proxy = self.sess.proxies)
         bloc = b.find('div', {'class':'bloc2'})
         debug(bloc =  bloc)
         if bloc and "temporarily locked" in bloc.text:
+            print(make_colors(list(set([re.sub(i, make_colors(i, 'b', 'lc'), bloc.text) for i in re.findall("\d+\.\d+\.\d+\.\d+", bloc.text)]))[0], 'lw', 'r'))
             if self.logined:
                 debug(login = "return False")
                 return False
             else:
-                print(make_colors(bloc.text, 'lightwhite', 'lightred'))
-                self.logined = True
-                self.auto_proxy()
+                if not self.use_proxy:
+                    # print(make_colors(bloc.text, 'lightwhite', 'lightred'))
+                    self.logined = True
+                    self.auto_proxy()
+                    self.use_proxy = True
+                else:
+                    return False
+        elif not a:
+            print(make_colors("Login Failed !", 'lw', 'r'))
+            sys.exit()
+        
         #print("content =", content)
-        debug(content = content)
+        
         cookies_0 = a.cookies
         cookies_1 = self.sess.cookies
+        if cookies_1.get_dict():
+            self.config.write_config('cookies', 'cookies', str(cookies_1.get_dict()))
         debug(cookies_0 = cookies_0)
         debug(cookies_1 = cookies_1)
         return True
@@ -694,8 +720,8 @@ class onefichier(object):
                 if number_selected and new_name:
                     if number_selected and int(number_selected) <= len(data):
                         rel = data[int(number_selected) - 1].get('rel')
-                        
-                        task = make_colors("Rename to", "lightwhite", "lightred")                        
+                        name = data[int(number_selected) - 1].get('name')
+                        task = make_colors(name, 'b', 'lg') + " " + make_colors("Rename to", "lightwhite", "lightred")                        
                         subtask = make_colors(new_name, 'lightwhite', 'blue') + " "    
                         bar.update(bar.max_value/2, task = task, subtask = subtask)
                         #raw_input("Enter to Continue")
