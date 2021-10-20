@@ -19,6 +19,9 @@ import re
 import traceback
 import time
 import bitmath
+from proxy_tester import proxy_tester
+import warnings
+warnings.filterwarnings("ignore")
 if sys.version_info.major == 3:
     raw_input = input
     from urllib.parse import urlparse
@@ -48,7 +51,7 @@ class onefichier(object):
     def __init__(self):
         super(onefichier, self)
         self.url = "https://1fichier.com/"
-        self.configname = os.path.join(os.path.dirname(__file__), '1fichier.ini')
+        self.configname = os.path.join(os.path.dirname(os.path.realpath(__file__)), '1fichier.ini')
         self.config = configset(self.configname)
         self.sess = requests.Session()
         self.logined = False
@@ -60,6 +63,12 @@ class onefichier(object):
         self.data = ''
         self.total = 0
         self.use_proxy = False
+        self.proxies = []
+        self.use_proxy_config = False
+        self.use_proxy_config_download = False
+        self.use_proxy_proxies = False
+        self.timeout = 10
+        self.bar = progressbar.ProgressBar(max_value = self.max_value, prefix = self.prefix, variables = self.variables)
 
     def set_header(self, header_str = None):
         """generate mediafire url to direct download url
@@ -90,38 +99,164 @@ class onefichier(object):
         debug(headers = headers)
         return headers    
 
-    def request(self, url, rtype = 'get', headers = None, data = {}, params = {}, timeout = 3, retries = 10, sleep = 1):
+    def request(self, url, rtype = 'get', headers = None, data = {}, params = {}, timeout = 10, retries = 2, sleep = 1, proxies = {}):
+        
+        def browser(url, rtype, headers, data, params, timeout, retries, sleep, proxies = {}):
+            n = 1
+            error = False
+            error_type = ''
+            error_full = ''
+            req = None
+            if not headers:
+                headers = self.set_header()
+            debug(headers = headers)
+            debug(proxies = proxies)
+            while 1:
+                debug(url = url)
+                debug(self_session_cookies = self.sess.cookies)
+                debug(self_session_cookies = self.sess.cookies.get_dict())
+                try:
+                    debug(self_session_cookies = self.sess.cookies.get('SID'))
+                except:
+                    pass
+                try:
+                    if rtype == 'post':    
+                        req = self.sess.post(url, data=data, params = params, headers = headers, timeout = timeout, proxies = proxies)
+                    else:
+                        req = self.sess.get(url, params = params, headers = headers, timeout = timeout, proxies = proxies)
+                    debug(req = req)
+                    # break
+                    return req, error, error_type, error_full
+                except:
+                    tr, vl, tb = sys.exc_info()
+                    error_type = vl.__class__.__name__
+                    debug(error_type = error_type)
+                    error_full = traceback.format_exc()
+                    debug(error_full = error_full)
+                    debug(n = n)
+                    debug(retries = retries)
+                    if not n == retries:
+                        n += 1
+                        time.sleep(sleep)
+                    else:
+                        error = True
+                        debug(error = error)
+                        # #pause()
+                        break
+                debug(req = req)
+                return req, error, error_type, error_full
+
         timeout = timeout or self.config.get_config('policy', 'timeout', '10')
         debug(timeout = timeout)
         retries = retries or self.config.get_config('policy', 'retries', '10')
         debug(retries = retries)
         sleep = sleep or self.config.get_config('policy', 'sleep', '1')
         debug(sleep = sleep)
-        n = 1
-        error = False
-        error_type = ''
-        error_full = ''
-        if not headers:
-            headers = self.set_header()
-        debug(headers = headers)
-        
+
+        timeout = float(self.timeout) or timeout
+        debug(timeout = timeout)
+        # print("TIMEOUT:", timeout)
+        req, error, error_type, error_full = browser(url, rtype, headers, data, params, timeout, retries, sleep)
+        exit = False
         while 1:
-            try:
-                if rtype == 'post':    
-                    req = self.sess.post(url, data=data, params = params, headers = headers, timeout = timeout)
+            if error_type == 'ConnectionError' or error_type == 'ReadTimeout':
+                qp = raw_input(make_colors("Connection Internet Error", 'lw', 'r') + ", " + make_colors("please check your internet connection !", 'ly') + ", " + make_colors("[n]t = retries with n times", 'b', 'lg') + ", " + make_colors("after that just enter or [q]quit or e[x]it for exit", 'lw', 'm') + ": ")
+                if qp:
+                    qp = qp.strip().lower()
+                    if qp == 'x' or qp == 'exit' or qp == 'quit' or qp == 'q':
+                        exit = True
+                        break
+                    elif qp[-1:] == 't' and qp[:-1].isdigit():
+                        rn = int(qp[:-1])
+                        for tr in range(rn + 1):
+                            task = make_colors("re:Connection", 'lw', 'r')
+                            subtask = make_colors("retry {}".format(tr), 'lw', 'm') + " "
+                            self.bar.max_value = rn + 1
+                            self.bar.update(tr, task = task, subtask = subtask)
+                            req, error, error_type, error_full = browser(url, rtype, headers, data, params, timeout, retries, sleep)
+                            if req:
+                                subtask = make_colors("retry {} SUCCESS".format(tr), 'b', 'ly') + " "
+                                self.bar.update(rn + 1, task = task, subtask = subtask)
+                                break        
+                            else:
+                                subtask = make_colors("Failed".format(tr), 'lw', 'r') + " "
+                                self.bar.update(rn + 1, task = task, subtask = subtask)
                 else:
-                    req = self.sess.get(url, params = params, headers = headers, timeout = timeout)
+                    req, error, error_type, error_full = browser(url, rtype, headers, data, params, timeout, retries, sleep)
+                    if req:
+                        break
+            else:
                 break
-            except:
-                tr, vl, tb = sys.exc_info()
-                error_type = vl.__class__.__name__
-                error_full = traceback.format_exc()
-                if not n == retries:
-                    n += 1
-                    time.sleep(sleep)
-                else:
-                    error = True
-                    break
+        if exit:
+            sys.exit()
+        debug(req = req)
+        
+        if not req and proxies:
+            if isinstance(proxies, dict):
+                print(make_colors("Use Proxy from dict", 'lw', 'r'))
+                proxies = self.build_proxy(proxies)
+                debug(proxies = proxies)
+                if proxies.get('http'):
+                    print(make_colors("use http  list_proxy:", 'lw', 'm') + " " + make_colors(proxies.get('http'), 'lw', 'r'))
+                if proxies.get('https'):
+                    print(make_colors("use https list_proxy:", 'lw', 'm') + " " + make_colors(proxies.get('https'), 'lw', 'r'))
+                req, error, error_type, error_full = browser(url, rtype, headers, data, params, timeout, retries, sleep, proxies)
+                
+        if not req and (self.config.get_config('proxy', 'http') or self.config.get_config('proxy', 'https')):
+            proxies_conf = {}
+            print(make_colors("Use Proxy from config", 'lw', 'r'))
+            if self.config.get_config('proxy', 'http'):
+                proxies_conf = {'http':'http://' + self.config.get_config('proxy', 'http')}
+            elif self.config.get_config('proxy', 'http'):
+                proxies_conf = {'https':'https://' + self.config.get_config('proxy', 'http')}
+            req, error, error_type, error_full = browser(url, rtype, headers, data, params, timeout, retries, sleep, proxies_conf)
+            # if req:
+            #     return req
+            # else:
+            if not req:
+                self.config.write_config('proxy', 'http', '')
+                self.config.write_config('proxy', 'https', '')
+
+        if not req and (self.config.get_config('download_proxy', 'http') or self.config.get_config('download_proxy', 'https')):
+            proxies_conf = {}
+            print(make_colors("Use Proxy from config", 'lw', 'r'))
+            if self.config.get_config('download_proxy', 'http'):
+                proxies_conf = {'http':'http://' + self.config.get_config('download_proxy', 'http')}
+            elif self.config.get_config('download_proxy', 'http'):
+                proxies_conf = {'https':'https://' + self.config.get_config('download_proxy', 'http')}
+            req, error, error_type, error_full = browser(url, rtype, headers, data, params, timeout, retries, sleep, proxies_conf)
+            # if req:
+            #     return req
+            # else:
+            if not req:
+                self.config.write_config('proxy', 'http', '')
+                self.config.write_config('proxy', 'https', '')
+            else:
+                self.config.write_config('proxy', 'http', self.config.get_config('download_proxy', 'http'))
+                self.config.write_config('proxy', 'https', self.config.get_config('download_proxy', 'https'))
+
+        if not req and proxies:
+            if not self.proxies:
+                pt = proxy_tester()
+                list_proxy = pt.getProxyList()
+                self.proxies = [i.get('ip') + ":" + i.get('port') for i in list_proxy]
+            for pr in self.proxies:
+                proxies = self.build_proxy(pr)
+                debug(proxies = proxies)
+                self.sess.proxies.update(proxies)
+                req, error, error_type, error_full = browser(url, rtype, headers, data, params, timeout, retries, sleep, proxies)
+                if req:
+                    self.config.write_config('proxy', 'http', pr)
+                    self.config.write_config('proxy', 'https', pr)
+                    index = self.proxies.index(pr) + 1
+                    self.proxies = self.proxies[index:]
+                    # return req
+        
+        debug(req = req)
+        debug(error = error)
+        #pause()
+        if req:
+            self.config.write_config('cookies', 'cookies', str(self.sess.cookies.get_dict()))
         if error:
             print(make_colors("ERROR:", 'b', 'y') + " " + make_colors(error_type, 'lw', 'r'))
             if os.getenv('DEBUG'):
@@ -141,9 +276,10 @@ class onefichier(object):
         if q == 'x' or q == 'q':
             sys.exit(make_colors("EXIT !", 'lw','lr'))
     
-    def login(self, username=None, password=None, url_code = 'login.pl'):
+    def login(self, username=None, password=None, url_code = 'login.pl', relogin = False):
         cookies = ''
-        if self.config.get_config('cookies', 'cookies'):
+        error = False
+        if self.config.get_config('cookies', 'cookies') and not relogin:
             try:
                 cookies = json.loads(self.config.get_config('cookies', 'cookies'))
             except:
@@ -179,8 +315,13 @@ class onefichier(object):
         debug(data = data)
 
         #a = self.sess.post(url, data = data)
+
         a = self.request(url, data = data, rtype = 'post')
         debug(a = a)
+        #pause()
+        if not a:
+            return False
+        
         # print("CONTENT:")
         # print(a.content)
         content = a.content
@@ -189,22 +330,24 @@ class onefichier(object):
         debug(sess_proxy = self.sess.proxies)
         bloc = b.find('div', {'class':'bloc2'})
         debug(bloc =  bloc)
+
         if bloc and "temporarily locked" in bloc.text:
             print(make_colors(list(set([re.sub(i, make_colors(i, 'b', 'lc'), bloc.text) for i in re.findall("\d+\.\d+\.\d+\.\d+", bloc.text)]))[0], 'lw', 'r'))
-            if self.logined:
-                debug(login = "return False")
-                return False
-            else:
-                if not self.use_proxy:
-                    # print(make_colors(bloc.text, 'lightwhite', 'lightred'))
-                    self.logined = True
-                    self.auto_proxy()
-                    self.use_proxy = True
-                else:
-                    return False
-        elif not a:
-            print(make_colors("Login Failed !", 'lw', 'r'))
-            sys.exit()
+            return False
+        #     if self.logined:
+        #         debug(login = "return False")
+        #         return False
+        #     else:
+        #         if not self.use_proxy:
+        #             # print(make_colors(bloc.text, 'lightwhite', 'lightred'))
+        #             self.logined = True
+        #             self.auto_proxy()
+        #             self.use_proxy = True
+        #         else:
+        #             return False
+        # elif not a:
+        #     print(make_colors("Login Failed !", 'lw', 'r'))
+        #     sys.exit()
         
         #print("content =", content)
         
@@ -216,12 +359,10 @@ class onefichier(object):
         debug(cookies_1 = cookies_1)
         return True
     
-    def auto_proxy(self, no_verify = False, use_all = False, force_https = False, force_http = False, proxy = {}):
-        scheme = urlparse(self.url).scheme
-        from proxy_tester import proxy_tester
-        import warnings
-        warnings.filterwarnings("ignore")
-        pc = proxy_tester.proxy_tester()
+    def auto_proxy(self, url = None, no_verify = False, use_all = False, force_https = False, force_http = False, proxy = {}):
+        if not url:
+            url = self.url
+        scheme = urlparse(url).scheme
         n_try = 1
         list_proxy = pc.getProxyList()
         proxies = {}
@@ -244,8 +385,8 @@ class onefichier(object):
                                 proxy_str = 'http://' + str(i.get('ip') + ":" + i.get('port'))                                    
                             else:
                                 proxies.update({
-                                                                    'https': 'https://' + str(i.get('ip') + ":" + i.get('port')),
-                                                                        'http': 'http://' + str(i.get('ip') + ":" + i.get('port')),
+                                    'https': 'https://' + str(i.get('ip') + ":" + i.get('port')),
+                                    'http': 'http://' + str(i.get('ip') + ":" + i.get('port')),
                                                                 })
                                 proxy_str = str(i.get('ip') + ":" + i.get('port'))
                         else:
@@ -265,7 +406,8 @@ class onefichier(object):
                                     proxy_str = 'http://' + str(i.get('ip') + ":" + i.get('port'))
                         bar.update(n_try, task = make_colors("Check Proxy", 'black', 'lightgreen'), subtask = make_colors(i.get('ip') + ":" + i.get('port'), 'lightwhite', 'lightblue') + " ")
                         try:
-                            requests.request('GET', self.url, proxies=proxies, verify=False, timeout=3)
+                            # requests.request('GET', url, proxies=proxies, verify=False, timeout=3)
+                            self.request(url, 'GET', proxies=proxies, verify=False, timeout=3)
                             debug(proxies = proxies)
                             #print("\n")
                             #print(make_colors("Use proxy: ", 'lightyellow') + make_colors(proxies.get(scheme), 'lightwhite', 'blue'))
@@ -289,7 +431,8 @@ class onefichier(object):
                             proxies = {scheme: str(scheme + "://" + i.get('ip') + ":" + i.get('port')),}
                             bar.update(n_try, task = make_colors("Match Proxy", 'black', 'lightgreen'), subtask = make_colors(proxies.get(scheme), 'lightwhite', 'lightblue') + " ")
                             try:
-                                requests.request('GET', self.url, proxies=proxies, verify=False, timeout=3)
+                                # requests.request('GET', url, proxies=proxies, timeout=3)
+                                self.request(url, 'GET', proxies=proxies, timeout=3)
                                 #print("\n")
                                 #print(make_colors("Use proxy: ", 'lightyellow') + make_colors(proxies.get(scheme), 'lightwhite', 'blue'))
                                 bar.update(n_try, task = make_colors("Try Proxy", 'lightwhite', 'lightred'), subtask = make_colors(proxies.get(scheme), 'lightwhite', 'lightblue') + " ")
@@ -328,17 +471,35 @@ class onefichier(object):
                 bar.update(100, task = make_colors("ERROR", 'lightwhite', 'lightred'), subtask = make_colors("[ERROR CONNECTION]", 'lightred', 'lightyellow') + " ")
                 sys.exit(make_colors("[ERROR CONNECTION]", 'lightwhite', 'lightred') + make_colors('Try Again !', 'black', 'lightyellow'))
         return proxies
+
+    def build_proxy(self, proxy):
+        proxies = {}
+        if not isinstance(proxy, dict) and proxy:
+            proxies = {'http':'http://' + proxy, 'https':'https://' + proxy}
+        else:
+            proxies = proxy
+        if not proxies or proxies == {}:
+            proxies = {}
+        return proxies
     
-    def clean_dones(self):
-        if not self.sess.cookies.get('SID'):
+    def clean_dones(self, proxy = None):
+        proxies = {}
+        if proxy:
+            proxies = self.build_proxy()
+
+        if not self.check_cookies(self.sess.cookies).get('SID'):
+            debug("login not use proxies")
             self.login()
+        if not self.check_cookies(self.sess.cookies).get('SID'):
+            debug("re login not use proxies")
+            self.login(relogin = True)
         url = self.url + "console/remote.pl?r=all"
-        return self.request(url)
+        return self.request(url, proxies = proxies)
     
     def get_download_link_info(self, bs_object = None, url = None):
         if not bs_object:
             if url:
-                a = self.request(url)
+                a = requests.get(url)
                 if not a:
                     print(make_colors("Get link info Failed !", 'lw', 'r'))
                     return False
@@ -364,29 +525,158 @@ class onefichier(object):
                     'size':size
                 })
         return info
-    
-    def get_download_link(self, url, print_wait = True):
-        warn_minutes = False
-        info = {}
-        
-        if not self.sess.cookies.get('SID'):
-            self.login()
-        a = self.request(url)
+
+    def get_hidden(self, url, proxy = None, login = False, timeout = 10):
+        proxies = self.build_proxy(proxy)
+        a = None
+        if login:
+            if not self.check_cookies(self.sess.cookies).get('SID'):
+                debug("login not use proxies")
+                self.login()
+            if not self.check_cookies(self.sess.cookies).get('SID'):
+                debug("re login not use proxies")
+                self.login(relogin = True)
+            if proxy:
+                if isinstance(proxy, dict):
+                    a = self.request(url, proxies = proxy)
+                else:
+                    proxies = {'http':'http://' + proxy, 'https':'https://' + proxy}
+                    a = self.request(url, proxies = proxies)
+            else:
+                a = self.request(url)
+        else:
+            a = requests.get(url, proxies = proxies, timeout = timeout)
+            
         if not a:
-            print(make_colors("Get download link [1] Failed !", 'lw', 'r'))
+            print(make_colors("Get download link [1] Failed ! [{}]".format(a.status_code), 'lw', 'r'))
+        
+        with open("get_download_link.html", 'wb') as ff:
+            if a.content:
+                ff.write(a.content)
+            else:
+                ff.write('')
+
         b = bs(a.content, 'lxml')
         hidden = b.find('input', {'type':'hidden'})
+        return hidden
+
+    def get_download_link(self, url, print_wait = True, retries = None, proxy = None, login = False, timeout = 10):
+        debug(url = url)
+        warn_minutes = False
+        info = {}
+        proxies = {}
+        if proxy:
+            proxies = self.build_proxy(proxy)
+        hidden = self.get_hidden(url, proxies, login, timeout)
+        if not hidden:
+            proxies = {}
+            if self.config.get_config('proxy', 'http') or self.config.get_config('proxy', 'https'):
+                if self.config.get_config('proxy', 'http'):
+                    proxies.update({'http':'http://' + self.config.get_config('proxy', 'http')})
+                    proxies.update({'https':'https://' + self.config.get_config('proxy', 'http')})
+                if self.config.get_config('proxy', 'https'):
+                    proxies.update({'https':'https://' + self.config.get_config('proxy', 'https')})
+            hidden = self.get_hidden(get_hidden(url, proxies, login, timeout))
+        if not hidden:
+            proxies = {}
+            if self.config.get_config('proxy', 'http') or self.config.get_config('download_proxy', 'https'):
+                if self.config.get_config('download_proxy', 'http'):
+                    proxies.update({'http':'http://' + self.config.get_config('download_proxy', 'http')})
+                    proxies.update({'https':'https://' + self.config.get_config('download_proxy', 'http')})
+                if self.config.get_config('download_proxy', 'https'):
+                    proxies.update({'https':'https://' + self.config.get_config('download_proxy', 'https')})
+            hidden = self.get_hidden(get_hidden(url, proxies, login, timeout))
+        if not hidden:
+            if not self.proxies:
+                pt = proxy_tester()
+                list_proxy = pt.getProxyList()
+                self.proxies = [i.get('ip') + ":" + i.get('port') for i in list_proxy]
+            for pr in self.proxies:
+                proxies = self.build_proxy(pr)
+                self.sess.proxies.update(proxies)
+                hidden = self.get_hidden(get_hidden(url, proxies, login, timeout))
+                if hidden:
+                    self.config.write_config('download_proxy', 'http', pr)
+                    self.config.write_config('download_proxy', 'https', pr)
+                    index = self.proxies.index(pr) + 1
+                    self.proxies = self.proxies[index:]
+        if hidden:
+            self.config.write_config('download_proxy', 'http', urlparse(proxies.get('http')).netloc)
+            self.config.write_config('download_proxy', 'https', urlparse(proxies.get('https')).netloc)
+
+        bloc2 = b.find('div', {'class':'bloc2'})
+        debug(bloc2 = bloc2)
+        if bloc2:
+            debug(bloc2_text = bloc2.text)
+            debug(str_bloc2 = str(bloc2))
+            bloc3 = re.sub("<br/>", " - ", str(bloc2))
+            debug(bloc3 = bloc3)
+            b1 = bs(bloc3, 'lxml')
+            error_text = b1.find('div')
+            if error_text:
+                error_text = re.sub("\\n", "", error_text.text)
+            else:
+                error_text = ''
+
+            debug(error_text = error_text)
+            if "does not exist" in error_text or "deleted" in error_text:
+                print(make_colors(error_text.strip(), 'lw', 'r'))
+                return False, warn_minutes, info
         debug(hidden = hidden)
         data = {'adz':hidden.get('value')}
-        a1 = self.request(url, 'post', data=data)
+        debug(login = login)
+        a1 = None
+        if login:
+            if proxy:
+                if isinstance(proxy, dict):
+                    a1 = self.request(url, 'post', data=data, proxies = proxy)
+                else:
+                    proxies = {'http':'http://' + proxy, 'https':'https://' + proxy}
+                    a1 = requests.get(url, 'post', data=data, proxies = proxies)
+            else:
+                a1 = requests.get(url, 'post', data=data)
+            login = False
+        else:
+            if proxy:
+                if isinstance(proxy, dict):
+                    try:
+                        a1 = requests.post(url, data=data, proxies = proxy)
+                    except:
+                        if self.proxies:
+                            index = self.proxies.index(urlparse(proxy.get('http')).netloc)
+                            if not index > len(self.proxies):
+                                return self.get_download_link(url, proxy = self.proxies[index + 1])
+                        # else:
+                        #     return False, warn_minutes, info
+                else:
+                    try:
+                        proxies = {'http':'http://' + proxy, 'https':'https://' + proxy}
+                        a1 = requests.post(url, data=data, proxies = proxies)
+                    except:
+                        if self.proxies:
+                            index = self.proxies.index(proxy)
+                            if not index > len(self.proxies):
+                                return self.get_download_link(url, proxy = self.proxies[index + 1])
+                        # else:
+                        #     return False, warn_minutes, info
+
+            else:
+                a1 = requests.post(url, data=data)
+
         if not a1:
             print(make_colors("Get download link [2] Failed !", 'lw', 'r'))
-            return False, warn_minutes, info
+            debug(login = login)
+            if login:
+            #     return False, warn_minutes, info
+                self.get_download_link(url, login = True)
+
         content = a1.content
+        with open("get_download_link.html", 'wb') as ff:
+            ff.write(content)
         # debug(content = content)
         b1 = bs(content, 'lxml')
         #debug(b1 = b1)
-        link = b1.find('a', text=re.compile('Click here to download the file'))
+        link = b1.find('a', {'class':'ok btn-general btn-orange'})#, text=re.compile('Click here to download the file'))
         warn = b1.find_all('div', {'class':"ct_warn"})
         debug(warn = warn)
         debug(link = link)
@@ -420,7 +710,63 @@ class onefichier(object):
                     if print_wait:
                         print(make_colors(warning, 'lightwhite', 'lightred', ['blink']))
                     if str(warn_minutes).isdigit() and int(warn_minutes) > 1:
-                        time.sleep(60)
+                        status = False
+                        if not self.use_proxy_config:
+                            proxies = {}
+                            if self.config.get_config('proxy', 'http') or self.config.get_config('proxy', 'https'):
+                                if self.config.get_config('proxy', 'http'):
+                                    proxies.update({'http':'http://' + self.config.get_config('proxy', 'http')})
+                                    proxies.update({'https':'https://' + self.config.get_config('proxy', 'http')})
+                                if self.config.get_config('proxy', 'https'):
+                                    proxies.update({'https':'https://' + self.config.get_config('proxy', 'https')})
+                            self.use_proxy_config = True
+                            status, link, info = self.get_download_link(url, False, proxy = proxies) 
+                            if status:
+                                return status, link, info
+                        if not self.use_proxy_config_download:
+                            proxies = {}
+                            if self.config.get_config('proxy', 'http') or self.config.get_config('download_proxy', 'https'):
+                                if self.config.get_config('download_proxy', 'http'):
+                                    proxies.update({'http':'http://' + self.config.get_config('download_proxy', 'http')})
+                                    proxies.update({'https':'https://' + self.config.get_config('download_proxy', 'http')})
+                                if self.config.get_config('download_proxy', 'https'):
+                                    proxies.update({'https':'https://' + self.config.get_config('download_proxy', 'https')})
+                            self.use_proxy_config_download = True
+                            status, link, info = self.get_download_link(url, False, proxy = proxies) 
+                            if status:
+                                return status, link, info
+                        if not self.use_proxy_proxies:
+                            if not self.proxies:
+                                pt = proxy_tester()
+                                list_proxy = pt.getProxyList()
+                                self.proxies = [i.get('ip') + ":" + i.get('port') for i in list_proxy]
+                            for pr in self.proxies:
+                                proxies = self.build_proxy(pr)
+                                self.sess.proxies.update(proxies)
+                                status, link, info = self.get_download_link(url, False, proxy = proxies) 
+                                if status:
+                                    self.config.write_config('download_proxy', 'http', pr)
+                                    self.config.write_config('download_proxy', 'https', pr)
+                                    index = self.proxies.index(pr) + 1
+                                    self.proxies = self.proxies[index:]
+                                    return status, link, info
+                        if status:
+                            self.config.write_config('download_proxy', 'http', urlparse(proxies.get('http')).netloc)
+                            self.config.write_config('download_proxy', 'https', urlparse(proxies.get('https')).netloc)
+                        # else:
+                        #     time.sleep(2)
+                        #     if print_wait:
+                        #         print(make_colors("waiting for: 2 seconds for {} minutes".format(warn_minutes), 'lightwhite', 'lightred', ['blink']))
+                        #     sys.stdout.write(".")
+                        #     sys.stdout.flush()
+                        #     return self.get_download_link(url, False) 
+
+                        # time.sleep(60)
+                        # if print_wait:
+                        #     print(make_colors("waiting for: 1 minute", 'lightwhite', 'lightred', ['blink']))
+                        # return self.get_download_link(url) 
+                    elif str(warn_minutes).isdigit() and int(warn_minutes) == 1:
+                        time.sleep(30)
                         if print_wait:
                             print(make_colors("waiting for: 1 minute", 'lightwhite', 'lightred', ['blink']))
                         return self.get_download_link(url) 
@@ -434,38 +780,149 @@ class onefichier(object):
                 return False, warn_minutes, info
 
         return False, warn_minutes, info
-    
-    def list(self, retries = 5):
-        if not self.sess.cookies.get('SID'):
-            self.login()
-        data = []
+
+    def get_sable(self):
         url = self.url + 'console/files.pl?dir_id=0&oby=0&search='
-        n = 1
-        error = False
-        while 1:
-            try:
-                a = self.request(url)
+        sable = ''
+        def get(proxies = {}):
+            sable = ''
+            a = self.request(url, proxies = proxies)
+            debug(a = a)
+            #pause()
+            if a:
                 debug(url = a.url)
                 content = a.content
+                with open('list.html', 'wb') as ff:
+                    ff.write(content)
                 debug(content = content)
-                debug(SID = self.sess.cookies.get('SID'))
+                debug(sess_cookies = self.sess.cookies)
+                try:
+                    debug(SID = self.sess.cookies.get('SID'))
+                except:
+                    debug(SID = self.sess.cookies.get_dict().get('SID'))
                 b = bs(content, 'lxml')
-                sable = b.find('ul', {'id':'sable'}).find_all('li')
+                try:
+                    sable = b.find('ul', {'id':'sable'}).find_all('li')
+                    return sable
+                except:
+                    sable = ''
                 debug(sable = sable)
-                break
+            return sable
+        
+        sable = get()
+        debug(sable = sable)
+        #pause()
+        
+        if not sable and (self.config.get_config('proxy', 'http') or self.config.get_config('proxy', 'https')):
+            proxies_conf = {}
+            print(make_colors("Use Proxy from config", 'lw', 'r'))
+            if self.config.get_config('proxy', 'http'):
+                proxies_conf = {'http':'http://' + self.config.get_config('proxy', 'http')}
+            elif self.config.get_config('proxy', 'http'):
+                proxies_conf = {'https':'https://' + self.config.get_config('proxy', 'http')}
+            sable = get(proxies_conf)
+            if not sable:
+                self.config.write_config('proxy', 'http', '')
+                self.config.write_config('proxy', 'https', '')
+            else:
+                self.config.write_config('cookies', 'cookies', srt(self.sess.cookies.get_dict()))
+
+        if not sable and (self.config.get_config('download_proxy', 'http') or self.config.get_config('download_proxy', 'https')):
+            proxies_conf = {}
+            print(make_colors("Use Proxy from config download", 'lw', 'r'))
+            if self.config.get_config('download_proxy', 'http'):
+                proxies_conf = {'http':'http://' + self.config.get_config('download_proxy', 'http')}
+            elif self.config.get_config('download_proxy', 'http'):
+                proxies_conf = {'https':'https://' + self.config.get_config('download_proxy', 'http')}
+            sable = get(proxies_conf)
+            if not sable:
+                self.config.write_config('download_proxy', 'http', '')
+                self.config.write_config('download_proxy', 'https', '')
+            else:
+                self.config.write_config('cookies', 'cookies', srt(self.sess.cookies.get_dict()))
+
+        if not sable:
+            print(make_colors("Use Proxy from self.proxies", 'lw', 'r'))
+            if not self.proxies:
+                pt = proxy_tester()
+                list_proxy = pt.getProxyList()
+                self.proxies = [i.get('ip') + ":" + i.get('port') for i in list_proxy]
+            for pr in self.proxies:
+                proxies = self.build_proxy(pr)
+                self.sess.proxies.update(proxies)
+                sable = get(proxies)
+                if sable:
+                    self.config.write_config('proxy', 'http', pr)
+                    self.config.write_config('proxy', 'https', pr)
+                    index = self.proxies.index(pr) + 1
+                    self.proxies = self.proxies[index:]
+                    self.config.write_config('cookies', 'cookies', srt(self.sess.cookies.get_dict()))
+            if not sable:
+                self.proxies = []
+                    
+        return sable
+
+    def get_next_proxy(self, list_proxy, referer_proxy):
+        index = None
+        proxies = {}
+        try:
+            index = list_proxy.index(urlparse(referer_proxy.get('http')).netloc)
+        except:
+            pass
+        if not index:
+            try:
+                index = list_proxy.index(urlparse(referer_proxy.get('https')).netloc)
             except:
-                self.login()
-                if not n == retries:
-                    n+=1
-                else:
-                    with open("error_list.html", 'wb') as ff:
-                        ff.write(content)
-                    error = True
-                    break
-                time.sleep(1)
-        if error:
-            print(make_colors("[1fichier]", 'r', 'y') + " " + make_colors("Failed to get Data ! [max attempt]", 'lw', 'r'))
-            return []
+                pass
+        debug(index = index)
+        if index:
+            if not index > len(list_proxy):
+                proxies = {'http': 'http://' + list_proxy[index + 1], 'https': 'https://' + list_proxy[index + 1]}
+            debug(proxies = proxies)
+            try:
+                list_proxy.remove(list_proxy[index + 1])
+            except:
+                pass
+        else:
+            if isinstance(list_proxy, list):
+                proxies = {'http': 'http://' + list_proxy[0], 'https': 'https://' + list_proxy[0]}
+
+        return proxies, list_proxy
+    
+    def list(self, retries = 5):
+
+        data = []
+        url = self.url + 'console/files.pl?dir_id=0&oby=0&search='
+        debug(url = url)
+
+        debug(self_session_cookies = self.sess.cookies)
+        debug(check_cookies = self.check_cookies(self.sess.cookies))
+        #pause()
+        if not self.check_cookies(self.sess.cookies).get('SID'):
+            debug("login not use proxies")
+            self.login()
+        if not self.check_cookies(self.sess.cookies).get('SID'):
+            debug("re login not use proxies")
+            self.login(relogin = True)
+        
+        #pause()
+        n = 1
+        error = False
+
+        sable = self.get_sable()
+        debug(sable = sable)
+        debug(SID = self.sess.cookies)
+        debug(SID = self.sess.cookies.get_dict())
+        try:
+            debug(SID = self.sess.cookies.get('SID'))
+        except:
+            pass
+        debug(sable = sable)
+        #pause()
+        if not sable:
+            print(make_colors("ERROR:", 'lw', 'r') + " " + make_colors("error get data !", 'r', 'lw'))
+            return False, 0
+        #pause()
         sizes = []
         total = 0
         if sable:
@@ -512,7 +969,7 @@ class onefichier(object):
             debug(data = data)
         self.data = data
         self.total = total
-        # pause()
+        # #pause()
         return data, total
     
     def download(self, url, download_path=os.getcwd(), confirm=False, use_wget=False, name = None):
@@ -532,17 +989,45 @@ class onefichier(object):
                         download_path = os.path.join(download_path, name)
                     wget.download(url, download_path)
 
+    def check_cookies(self, cookies):
+        cookies = str(cookies)
+        debug(cookies = cookies)
+        data = re.findall('SID=(.*?) ', cookies)
+        debug(data = data)
+        if data:
+            data = filter(None, data)[0]
+            debug(data = data)
+            return {'SID':data}
+        return {}
+        
+
     def navigator(self, username = None, password = None, no_verify = False, use_all = False, force_https = False, force_http = False, proxy = {}, minute_add = None, download_path = os.getcwd(), confirm = False, force_wget = False, q = None, data = None, print_list = True, sort_by = 'date', direct_download_number = None):
         check_sort_by = ['rel', 'name', 'date', 'size', 'timestamp']
         total = self.total or 0
-        if not self.sess.cookies.get('SID'):
+        debug(self_session_cookies = self.sess.cookies)
+        debug(self_session_cookies = self.sess.cookies.get_dict())
+        if not self.check_cookies(self.sess.cookies).get('SID'):
             self.login(username, password)
+        if not self.check_cookies(self.sess.cookies).get('SID'):
+            debug("login not use proxies")
+            self.login()
+        if not self.check_cookies(self.sess.cookies).get('SID'):
+            debug("re login not use proxies")
+            self.login(relogin = True)
         debug(sort_by = sort_by)
         debug(data = data)
         if self.data:
             data = self.data
         debug(data = data)
+        debug(self_session_cookies = self.sess.cookies)
+        debug(self_session_cookies_str = str(self.sess.cookies))
+        debug(check_cookies = self.check_cookies(self.sess.cookies))
+        try:
+            debug(self_session_cookies = self.sess.cookies.get_dict())
+        except:
+            pass
         
+        #pause()
         if not data:
             data, total = self.list()
             self.data = data
@@ -551,9 +1036,10 @@ class onefichier(object):
         else:
             self.data = data
             debug("data is it")
-        if sort_by:
-            debug(sort_by = sort_by)
-            data, total = self.list()
+        debug(sort_by = sort_by)
+        # if sort_by:
+        #     debug(sort_by = sort_by)
+        #     data, total = self.list()
             
         if str(sort_by).lower().strip() == 'time':
             sort_by = 'timestamp'
@@ -567,8 +1053,8 @@ class onefichier(object):
         
         
         debug(data = data)			
-        # pause()
         debug(print_list = print_list)
+        #pause()
         if print_list and data:
             n = 1
             for i in data:
@@ -619,32 +1105,58 @@ class onefichier(object):
                     print(make_colors("DATE    :", 'lw', 'm') + " " + make_colors(download_link[2].get('date'), 'lw', 'm'))
                 else:
                     print(make_colors("GENERATE:", 'r', 'lw') + " " + make_colors("FAILED !", 'lw', 'r'))
-            elif q and q[-1:] == 'd' and q[:-1].isdigit():
-                debug("q containt 'd'")
-                q = q[:-1]
-                task = make_colors("Download Link", 'lightwhite', 'blue')
-                subtask = make_colors("Get", 'lightwhite', 'magenta') + " "
-                bar.update(bar.value + 1, task = task, subtask = subtask)
-                #print("data.get(list(data.keys())[0]).keys() =", data.get(list(data.keys())[0]).keys())
-                debug(data_selected = data[int(q) - 1])
-                link = self.download_link(data[int(q) - 1].get('rel'))
-                name = unidecode(data[int(q) - 1].get('name'))
-
-                task = make_colors("Download Link", 'lightwhite', 'blue')
-                subtask = make_colors("Convert", 'lightwhite', 'magenta') + " "
-                bar.update(bar.value + 1, task = task, subtask = subtask)
-                download_link = self.get_download_link(link)
-                debug(download_link = download_link)
-                task = make_colors("Download", 'lightwhite', 'blue')
-                subtask = make_colors(name, 'lightred', 'lightyellow') + " "
-                bar.update(bar.value + 1, task = task, subtask = subtask)
-                print(make_colors("DOWNLOAD LINK:", 'b', 'y') + " " + make_colors(download_link[1], 'b', 'c'))
-                if download_link[0]:
-                    self.download(download_link[1], download_path, confirm, force_wget, name)
+            elif q and q[-1:] == 'd':# and q[:-1].isdigit():
+                all_number_selected = []
+                if len(str(q).strip()) > 1:
+                    number_selected = str(q).strip()[:-1]
                 else:
-                    task = make_colors("Download", 'lightwhite', 'lightred')
-                    subtask = make_colors("ERROR Wait for " + download_link[1] + " minutes", 'lightred', 'lightwhite') + " "
-                bar.update(bar.max_value, task = task, subtask = subtask)					
+                    number_selected = raw_input(make_colors("Select number to download: ", 'lightwhite', 'lightred'))
+
+                if "," in number_selected or " " in number_selected:
+                    number_selected = re.sub(" ", "", number_selected)
+                    number_selected = re.split(",| ", number_selected)
+                    all_number_selected += number_selected
+                elif "-" in number_selected:
+                    number_selected = re.sub(" ", "", number_selected)
+                    debug(number_selected = number_selected)
+                    number_selected = re.split("-", number_selected)
+                    debug(number_selected = number_selected)
+                    number_selected = list(range(int(number_selected[0]), (int(number_selected[1]) + 1)))
+                    debug(number_selected = number_selected)
+                    all_number_selected += number_selected
+                else:
+                    number_selected = [number_selected]
+                number_selected = list(set(all_number_selected))
+                # debug(number_selected = number_selected)
+                # #pause()
+
+                debug("q containt 'd'")
+                for q in number_selected:
+                    task = make_colors("Download Link", 'lightwhite', 'blue')
+                    subtask = make_colors("Get", 'lightwhite', 'magenta') + " "
+                    bar.update(bar.value + 1, task = task, subtask = subtask)
+                    #print("data.get(list(data.keys())[0]).keys() =", data.get(list(data.keys())[0]).keys())
+                    debug(data_selected = data[int(q) - 1])
+                    link = self.download_link(data[int(q) - 1].get('rel'))
+                    name = unidecode(data[int(q) - 1].get('name'))
+
+                    task = make_colors("Download Link", 'lightwhite', 'blue')
+                    subtask = make_colors("Convert", 'lightwhite', 'magenta') + " "
+                    bar.update(bar.value + 1, task = task, subtask = subtask)
+                    download_link = self.get_download_link(link)
+                    debug(download_link = download_link)
+                    task = make_colors("Download", 'lightwhite', 'blue')
+                    subtask = make_colors(name, 'lightred', 'lightyellow') + " "
+                    bar.update(bar.value + 1, task = task, subtask = subtask)
+                    print(make_colors("DOWNLOAD LINK:", 'b', 'y') + " " + make_colors(download_link[1], 'b', 'c'))
+                    print(make_colors("DOWNLOAD PATH:", 'b', 'lc') + " " + make_colors(download_path, 'b', 'c'))
+                    if download_link[0]:
+                        self.download(download_link[1], download_path, confirm, force_wget, name)
+                    else:
+                        task = make_colors("Download", 'lightwhite', 'lightred')
+                        subtask = make_colors("ERROR Wait for " + download_link[1] + " minutes", 'lightred', 'lightwhite') + " "
+                    bar.update(bar.max_value, task = task, subtask = subtask)					
+                    bar.value = 0
             elif q and q[-1:] == 'm' and q[:-1].isdigit():
                 debug("q containt 'm'")
                 if len(str(q).strip()) > 1:
@@ -758,9 +1270,11 @@ class onefichier(object):
                 qr = raw_input(make_colors("Input Remote URL: ", 'lightwhite', 'blue'))
                 if qr:
                     if qr.strip() == 'c':
-                        qr = clipboard.paste()
-                    if 'http' in qr or 'ftp' in qr:
-                        self.remote_upload(str(qr))
+                        qr = [clipboard.paste()]
+                    else:
+                        qr = [qr.strip()]
+                    if 'http' in qr[0] or 'ftp' in qr[0]:
+                        self.remote_upload(qr)
             elif q == "s" in q or "s=" in q or "s =" in q:
                 debug("q is 's'")
                 sort_by = re.split("s=|s =|s = |s= ", q)
@@ -845,13 +1359,17 @@ class onefichier(object):
         return data
     
     def download_link(self, id_rel):
-        if not self.sess.cookies.get('SID'):
+        if not self.check_cookies(self.sess.cookies).get('SID'):
+            debug("login not use proxies")
             self.login()
+        if not self.check_cookies(self.sess.cookies).get('SID'):
+            debug("re login not use proxies")
+            self.login(relogin = True)
         url = self.url + 'console/link.pl'
         if id_rel:
             data = {
-                            'selected[]':id_rel,
-                        }
+                'selected[]':id_rel,
+            }
             a = self.request(url, 'post', data=data)
             content = a.content
             b = bs(content, 'lxml')
@@ -862,8 +1380,12 @@ class onefichier(object):
             return False
     
     def export(self, id_rel, save_path = os.getcwd()):
-        if not self.sess.cookies.get('SID'):
+        if not self.check_cookies(self.sess.cookies).get('SID'):
+            debug("login not use proxies")
             self.login()
+        if not self.check_cookies(self.sess.cookies).get('SID'):
+            debug("re login not use proxies")
+            self.login(relogin = True)
         url = self.url + 'console/fexp.pl'
         if id_rel:
             data = {
@@ -886,11 +1408,16 @@ class onefichier(object):
         else:
             return False
     
-    def check_todo(self):
-        if not self.sess.cookies.get('SID'):
+    def check_todo(self, proxy = None):
+        proxies = self.build_proxy(proxy)
+        if not self.check_cookies(self.sess.cookies).get('SID'):
+            debug("login not use proxies")
             self.login()
+        if not self.check_cookies(self.sess.cookies).get('SID'):
+            debug("re login not use proxies")
+            self.login(relogin = True)
         url = self.url + 'console/remote.pl?c=todo'
-        a = self.request(url)
+        a = self.request(url, proxies = proxies)
         b = bs(a.content, 'lxml')
         data = []
         ru_item = b.find_all('div', {'id':re.compile('d')})
@@ -935,11 +1462,16 @@ class onefichier(object):
         timestamp = self.date_to_timestamp(gdate)
         return date_str, timestamp
     
-    def check_done(self):
-        if not self.sess.cookies.get('SID'):
+    def check_done(self, proxy = None):
+        proxies = self.build_proxy(proxy)
+        if not self.check_cookies(self.sess.cookies).get('SID'):
+            debug("login not use proxies")
             self.login()
+        if not self.check_cookies(self.sess.cookies).get('SID'):
+            debug("re login not use proxies")
+            self.login(relogin = True)
         url = self.url + 'console/remote.pl?c=done'
-        a = self.request(url)
+        a = self.request(url, proxies = proxies)
         b = bs(a.content, 'lxml')
         data = []
         alc = b.find('div', {'class':'alc'})
@@ -986,16 +1518,21 @@ class onefichier(object):
             debug(data = data)
         return data
     
-    def remove(self, id_rel):
-        if not self.sess.cookies.get('SID'):
+    def remove(self, id_rel, proxy = None):
+        proxies = self.build_proxy(proxy)
+        if not self.check_cookies(self.sess.cookies).get('SID'):
+            debug("login not use proxies")
             self.login()
+        if not self.check_cookies(self.sess.cookies).get('SID'):
+            debug("re login not use proxies")
+            self.login(relogin = True)
         url = self.url + 'console/remove.pl'
         data = {
-                    'remove':'1',
-                        'selected[]':id_rel
-                }
+            'remove':'1',
+            'selected[]':id_rel
+        }
         debug(data = data)
-        a = self.request(url, 'post', data=data)
+        a = self.request(url, 'post', data=data, proxies = proxies)
         content = a.content
         debug(content = content)
         if 'Files removed' in content:
@@ -1003,7 +1540,8 @@ class onefichier(object):
         else:
             return False
 
-    def _remove(self, number_selected, data, sort_by, bar):
+    def _remove(self, number_selected, data, sort_by, bar, proxy = None):
+        proxies = self.build_proxy(proxy)
         # if number_selected and str(number_selected).isdigit() and int(number_selected) <= len(data):
         debug(data_selected = data[int(number_selected) - 1])
         rel = data[int(number_selected) - 1].get('rel')
@@ -1014,19 +1552,24 @@ class onefichier(object):
         bar.update(5, task = task, subtask = subtask)
         #raw_input("Enter to Continue")
         debug(rel = rel)
-        self.remove(rel)
+        self.remove(rel, proxy = proxies)
         bar.update(bar.max_value, task = task, subtask = subtask)
     
-    def rename(self, id_rel, new_name):
-        if not self.sess.cookies.get('SID'):
+    def rename(self, id_rel, new_name, proxy = None):
+        proxies = self.build_proxy(proxy)
+        if not self.check_cookies(self.sess.cookies).get('SID'):
+            debug("login not use proxies")
             self.login()
+        if not self.check_cookies(self.sess.cookies).get('SID'):
+            debug("re login not use proxies")
+            self.login(relogin = True)
         url = self.url + 'console/frename.pl'
         data = {
             'newname': new_name,
             'file': id_rel
         }
         debug(data = data)
-        a = self.request(url, 'post', data=data)
+        a = self.request(url, 'post', data=data, proxies = proxies)
         content = a.content
         debug(content = content)
         if 'File renamed successfully' in content:
@@ -1034,16 +1577,21 @@ class onefichier(object):
         else:
             return False
     
-    def remote_upload(self, links, timeout = 3, retries = 10, renameit = None):
+    def remote_upload(self, links, timeout = 3, retries = 10, renameit = None, proxy = None):
+        proxies = self.build_proxy(proxy)
         data, total = self.list()
         self.data = data
         self.status_message = None
         error = False
-        if not self.sess.cookies.get('SID'):
+        if not self.check_cookies(self.sess.cookies).get('SID'):
+            debug("login not use proxies")
             self.login()
+        if not self.check_cookies(self.sess.cookies).get('SID'):
+            debug("re login not use proxies")
+            self.login(relogin = True)
         debug(cookie = self.sess.cookies)
         self.max_value = 100
-        self.clean_dones()
+        self.clean_dones(proxy = proxies)
         url = self.url + 'console/remote.pl'
         for i in links:
             if i == 'c':
@@ -1052,7 +1600,7 @@ class onefichier(object):
             n = 1
             while 1:
                 try:
-                    a = self.request(url, 'post', data = post_data, timeout = timeout)
+                    a = self.request(url, 'post', data = post_data, timeout = timeout, proxies = proxies)
                     break
                 except:
                     if not n == retries:
@@ -1078,7 +1626,7 @@ class onefichier(object):
                 task = make_colors("Action", "lightwhite", "blue")
                 subtask = make_colors("RemoteUpload", "lightwhite", "magenta") + " "
                 while 1:
-                    data_done = self.check_done()
+                    data_done = self.check_done(proxy = proxies)
                     done = False
                     if data_done:
                         if data_done == 'error':
@@ -1093,7 +1641,7 @@ class onefichier(object):
                         if done:
                             break
                     else:
-                        if i in self.check_todo():
+                        if i in self.check_todo(proxy = proxies):
                             if bar.value == self.max_value:
                                 bar.value = 0							
                             bar.update(bar.value + 4, task = task, subtask = subtask)
@@ -1181,50 +1729,54 @@ class onefichier(object):
         parser.add_argument('-x', '--proxy', help="Via Proxy, example: https://192.168.0.1:3128 https://192.168.0.1:3128 ftp://127.0.0.1:33 or {'http':'127.0.0.1:8080', 'https': '10.5.6.7:5656'} or type 'auto' for auto proxy", action='store', nargs='*')
         parser.add_argument('-nv', '--no-verify', action = 'store_true', help = 'Use all type of proxy (http or https)')
         parser.add_argument('-a', '--all', action = 'store_true', help = 'Use all type of proxy (http or https) to session')
+        parser.add_argument('-t', '--timeout', action = 'store', help = 'Connection timeout', default = 10)
         parser.add_argument('-http', '--http', action = 'store_true', help = 'Use all type of proxy (http or https) to session and set to http')
         parser.add_argument('-https', '--https', action = 'store_true', help = 'Use all type of proxy (http or https) to session and set to https')
-        if len(sys.argv) == 1:
-            print(make_colors("use '-h' for Command Help", 'lightred', 'lightwhite'))
-            self.navigator()
-        else:
-            args = parser.parse_args()
-            proxy = {}
-            scheme = urlparse(self.url).scheme
-            if self.config.get_config('proxy', scheme):
-                #proxy = {scheme: scheme + "://" + self.conf.get_config('proxy', scheme),}
-                proxy = {scheme: self.config.get_config('proxy', scheme),}
-            if args.proxy:
-                debug(args_proxy = args.proxy)
-                proxy = self.set_proxy(args.proxy)
-                debug(proxy = proxy)
-                self.sess.proxies = proxy
-            if args.remote_upload:
-                if args.remote_upload == ["c"]:
-                    args.remote_upload = [clipboard.paste()]
-                self.remote_upload(args.remote_upload, renameit = args.rename)
-                self.refresh(args.sort_by)
-            if args.download or args.generate:
-                if args.download:
-                    data = self.get_download_link(args.download)
-                elif args.generate:
-                    data = self.get_download_link(args.generate)
-                if data[0]:
-                    url_download = data[1]
-                    print("\n")
-                    print(make_colors("GENERATED :", 'lw', 'r') + " " + make_colors(url_download, 'y'))
-                    print(make_colors("NAME      :", 'b', 'c')  + " " + make_colors(data[2].get('name'), 'c'))
-                    print(make_colors("SIZE      :", 'b', 'y')  + " " + make_colors(data[2].get('size'), 'g'))
-                    print(make_colors("DATE      :", 'lw', 'm') + " " + make_colors(data[2].get('date'), 'bl'))
+        # if len(sys.argv) > 0:
+            # print(make_colors("use '-h' for Command Help", 'lightred', 'lightwhite'))
+        #     self.navigator()
+        # else:
+        args = parser.parse_args()
+        proxy = {}
+        scheme = urlparse(self.url).scheme
 
-                    if args.clip:
-                        clipboard.copy(url_download)
-                    if args.download:
-                        self.download(url_download, args.download_path, args.confirm, args.wget, args.saveas)
-            if args.ndownload:
-                self.navigator(args.username, args.password, args.no_verify, args.all, args.https, args.http, args.proxy, None, args.download_path, args.confirm, args.wget, None, None, False, args.sort_by, args.ndownload)
-            else:
+        self.timeout = args.timeout
+
+        if self.config.get_config('proxy', scheme):
+            #proxy = {scheme: scheme + "://" + self.conf.get_config('proxy', scheme),}
+            proxy = {scheme: self.config.get_config('proxy', scheme),}
+        if args.proxy:
+            debug(args_proxy = args.proxy)
+            proxy = self.set_proxy(args.proxy)
+            debug(proxy = proxy)
+            self.sess.proxies = proxy
+        if args.remote_upload:
+            if args.remote_upload == ["c"]:
+                args.remote_upload = [clipboard.paste()]
+            self.remote_upload(args.remote_upload, renameit = args.rename)
+            self.refresh(args.sort_by)
+        if args.download or args.generate:
+            if args.download:
+                data = self.get_download_link(args.download)
+            elif args.generate:
+                data = self.get_download_link(args.generate)
+            if data[0]:
+                url_download = data[1]
                 print("\n")
-                self.navigator(args.username, args.password, args.no_verify, args.all, args.https, args.http, proxy, download_path = args.download_path, confirm = args.confirm, force_wget = args.wget, sort_by = args.sort_by, direct_download_number=args.ndownload)
+                print(make_colors("GENERATED :", 'lw', 'r') + " " + make_colors(url_download, 'y'))
+                print(make_colors("NAME      :", 'b', 'c')  + " " + make_colors(data[2].get('name'), 'c'))
+                print(make_colors("SIZE      :", 'b', 'y')  + " " + make_colors(data[2].get('size'), 'g'))
+                print(make_colors("DATE      :", 'lw', 'm') + " " + make_colors(data[2].get('date'), 'bl'))
+
+                if args.clip:
+                    clipboard.copy(url_download)
+                if args.download:
+                    self.download(url_download, args.download_path, args.confirm, args.wget, args.saveas)
+        if args.ndownload:
+            self.navigator(args.username, args.password, args.no_verify, args.all, args.https, args.http, args.proxy, None, args.download_path, args.confirm, args.wget, None, None, False, args.sort_by, args.ndownload)
+        else:
+            print("\n")
+            self.navigator(args.username, args.password, args.no_verify, args.all, args.https, args.http, proxy, download_path = args.download_path, confirm = args.confirm, force_wget = args.wget, sort_by = args.sort_by, direct_download_number=args.ndownload)
 
 def usage():
     c = onefichier()
@@ -1234,8 +1786,9 @@ if __name__ == '__main__':
     c = onefichier()
     c.usage()
     #c.remove("C_0_g38aio8euw61hrvjvxw5")
+    # c.get_download_link(sys.argv[1])
     # c.get_download_link("https://1fichier.com/?13tkjkqtegzxu5ilewnl")
-    # c.get_download_link("https://1fichier.com/?vmq3xfyq9rzl5hm68d68")
+    c#.get_download_link("https://1fichier.com/?vmq3xfyq9rzl5hm68d68")
     #c.login()
     #c.list()
     #dl = c.download_link("C_0_13tkjkqtegzxu5ilewnl")

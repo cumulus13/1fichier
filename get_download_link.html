@@ -1,0 +1,102 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN"
+	"http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <title>1fichier.com: Cloud Storage</title>
+	<meta http-equiv="content-type" content="text/html;charset=utf-8">
+	<link rel="shortcut icon" href="https://img.1fichier.com/favicon.ico" />
+	<link rel="icon" type="image/x-icon" href="https://img.1fichier.com/favicon.ico" />
+	<link rel="icon" type="image/png" href="https://img.1fichier.com/favicon.png" />
+	<link rel="apple-touch-icon" href="https://img.1fichier.com/favicon.png" />
+	<link rel="image_src" href="https://img.1fichier.com/favicon.png" />
+  <link rel="stylesheet" type="text/css" href="https://img.1fichier.com/css/style.css" />
+  <link rel="stylesheet" type="text/css" href="https://img.1fichier.com/css/jquery.ui.css" />
+	<script type="text/javascript" src="https://img.1fichier.com/js/jquery.js"></script>
+</head>
+<body>
+	<script type="text/javascript">
+	<!-- 
+		$( function() {
+	    $.widget( "custom.iconselectmenu", $.ui.selectmenu, {
+  	    _renderItem: function( ul, item ) {
+    	    var li = $("<li>"), wrapper = $("<div>", { text: item.label });
+					if( item.element.attr("data-imagesrc") )	{ $( "<span>", { style: "background-image: url( \"" + item.element.attr("data-imagesrc") + "\")", "class": "ui-icon avatar" }).appendTo( wrapper ); }
+					else { $( "<span>", { style: "background-image:none", "class": "ui-icon avatar" }).appendTo( wrapper ); }
+	        return li.append( wrapper ).appendTo( ul );
+      	},
+				_renderButtonItem: function( item ) {
+				  var buttonItem;
+					if( item.element.attr("data-imagesrc") ) { buttonItem = $( "<span>", { style: "background-image: url( \"" + item.element.attr("data-imagesrc") + "\")", "class": "ui-selectmenu-text avatar" }) }
+					else {  buttonItem = $( "<span>", { style: "background-image:none", "class": "ui-selectmenu-text avatar" }) }
+				  this._setText( buttonItem, item.label );
+				  return buttonItem;
+				}
+    	});
+
+			
+    	$(".lselector").iconselectmenu({ width:200, change: function( event, ui ) { window.location.href=this.value; }  }).iconselectmenu("menuWidget").addClass( "ui-menu-icons" );
+  	});
+	-->
+</script>
+
+<div id="header">
+	<a href="https://1fichier.com" title="1fichier.com"><img id="logo" src="https://img.1fichier.com/logo.png" alt="logo" width="240" height="70" /></a>
+
+	<div id="btn-container">
+ 		<select class="lselector">
+			<option value="/?lg=en" data-imagesrc="https://img.1fichier.com/flags/en.png" selected="selected">English</option>
+			<option value="/?lg=fr" data-imagesrc="https://img.1fichier.com/flags/fr.png">Français</option>
+    </select>
+
+		<a class="ui-button ui-corner-all" href="https://1fichier.com/tarifs.html" title="Prices">Prices</a>
+
+		
+			<a class="ui-button ui-corner-all" href="https://1fichier.com/register.pl" title="Register">Register</a>
+			<a class="ui-button ui-corner-all" href="https://1fichier.com/login.pl" title="Login">My Account</a>
+		
+	</div>
+  <span class="spacer" style="height:1px"></span>
+  
+  
+       <div class="spacer"></div>
+
+  
+</div>
+<div class="spacer" style="height:140px"></div>
+	
+	<div class="center-container2">
+  	<div class="bloc2">
+ 		  Le fichier demandé a été supprimé.<br/>The requested file has been deleted.
+			<span class="spacer spacer-20"></span>
+		</div>
+
+		
+		
+
+	</div>
+	<span class="spacer" style="height:90px"></span>
+	<div id="footer">
+	<div class="center-container">
+		<a href="https://1fichier.com" title="Back to home page"><img class="gauche" src="https://img.1fichier.com/logo-footer.png" alt="1fichier.com" /></a>
+		<div id="link-container">
+			<a href="https://1fichier.com/cgu.html">Legal &amp; Terms</a>&nbsp;&nbsp;&nbsp;
+			<a href="https://1fichier.com/abus.html">Abuse</a>&nbsp;&nbsp;&nbsp;
+			<a href="https://1fichier.com/tarifs.html">Prices</a>&nbsp;&nbsp;&nbsp;
+			<a href="https://1fichier.com/revendeurs.html">Resellers</a>&nbsp;&nbsp;&nbsp;
+			<a href="https://1fichier.com/hlp.html">Help</a>&nbsp;&nbsp;&nbsp;
+			<a href="https://1fichier.com/network.html">Speedtest</a>&nbsp;&nbsp;&nbsp;
+			<a href="https://1fichier.com/contact.html">Contact</a>
+      <br/>
+      <a target="_new" href="https://twitter.com/1fichiercom"><img src="https://img.1fichier.com/twitter.png" alt="Twitter" style="padding:0;border:0" /></a>&nbsp;&nbsp;&nbsp;
+      <a target="_new" href="https://facebook.com/1fichiercom"><img src="https://img.1fichier.com/facebook.png" alt="Facebook" style="padding:0;border:0" /></a>&nbsp;&nbsp;&nbsp;
+			<a href="https://1fichier.com/api.html" style="vertical-align:top">API</a>&nbsp;&nbsp;&nbsp;
+      <a href="https://1fichier.com/occasions.html" style="vertical-align:top">Used Equipments</a>&nbsp;&nbsp;&nbsp;
+      <a href="https://1fichier.com/servers.html" style="vertical-align:top">Dedicated Servers</a>&nbsp;&nbsp;&nbsp;
+      <a target="_new" href="https://dstorage.fr" style="vertical-align:top">DStorage SASU © 2009-2021</a>
+		</div>
+	</div>
+	<span class="spacer"></span>
+</div>       
+
+</body>
+</html>
