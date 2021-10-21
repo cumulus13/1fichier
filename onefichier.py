@@ -99,7 +99,7 @@ class onefichier(object):
         debug(headers = headers)
         return headers    
 
-    def request(self, url, rtype = 'get', headers = None, data = {}, params = {}, timeout = 10, retries = 2, sleep = 1, proxies = {}):
+    def request(self, url, rtype = 'get', headers = None, data = {}, params = {}, timeout = 10, retries = 10, sleep = 1, proxies = {}):
         
         def browser(url, rtype, headers, data, params, timeout, retries, sleep, proxies = {}):
             n = 1
@@ -536,14 +536,7 @@ class onefichier(object):
             if not self.check_cookies(self.sess.cookies).get('SID'):
                 debug("re login not use proxies")
                 self.login(relogin = True)
-            if proxy:
-                if isinstance(proxy, dict):
-                    a = self.request(url, proxies = proxy)
-                else:
-                    proxies = {'http':'http://' + proxy, 'https':'https://' + proxy}
-                    a = self.request(url, proxies = proxies)
-            else:
-                a = self.request(url)
+            a = self.request(url, proxies = proxies)
         else:
             a = requests.get(url, proxies = proxies, timeout = timeout)
             
@@ -560,11 +553,14 @@ class onefichier(object):
         hidden = b.find('input', {'type':'hidden'})
         return hidden
 
-    def get_download_link(self, url, print_wait = True, retries = None, proxy = None, login = False, timeout = 10):
+    def get_download_link(self, url, print_wait = True, retries = 10, proxy = None, login = False, timeout = 10, retries_proxy = 2):
         debug(url = url)
         warn_minutes = False
         info = {}
         proxies = {}
+        error_type = ''
+        error_full = ''
+        error = False
         if proxy:
             proxies = self.build_proxy(proxy)
         hidden = self.get_hidden(url, proxies, login, timeout)
@@ -576,7 +572,7 @@ class onefichier(object):
                     proxies.update({'https':'https://' + self.config.get_config('proxy', 'http')})
                 if self.config.get_config('proxy', 'https'):
                     proxies.update({'https':'https://' + self.config.get_config('proxy', 'https')})
-            hidden = self.get_hidden(get_hidden(url, proxies, login, timeout))
+            hidden = self.get_hidden(url, proxies, login, timeout)
         if not hidden:
             proxies = {}
             if self.config.get_config('proxy', 'http') or self.config.get_config('download_proxy', 'https'):
@@ -585,7 +581,7 @@ class onefichier(object):
                     proxies.update({'https':'https://' + self.config.get_config('download_proxy', 'http')})
                 if self.config.get_config('download_proxy', 'https'):
                     proxies.update({'https':'https://' + self.config.get_config('download_proxy', 'https')})
-            hidden = self.get_hidden(get_hidden(url, proxies, login, timeout))
+            hidden = self.get_hidden(url, proxies, login, timeout)
         if not hidden:
             if not self.proxies:
                 pt = proxy_tester()
@@ -594,7 +590,7 @@ class onefichier(object):
             for pr in self.proxies:
                 proxies = self.build_proxy(pr)
                 self.sess.proxies.update(proxies)
-                hidden = self.get_hidden(get_hidden(url, proxies, login, timeout))
+                hidden = self.get_hidden(url, proxies, login, timeout)
                 if hidden:
                     self.config.write_config('download_proxy', 'http', pr)
                     self.config.write_config('download_proxy', 'https', pr)
@@ -627,48 +623,40 @@ class onefichier(object):
         debug(login = login)
         a1 = None
         if login:
-            if proxy:
-                if isinstance(proxy, dict):
-                    a1 = self.request(url, 'post', data=data, proxies = proxy)
-                else:
-                    proxies = {'http':'http://' + proxy, 'https':'https://' + proxy}
-                    a1 = requests.get(url, 'post', data=data, proxies = proxies)
-            else:
-                a1 = requests.get(url, 'post', data=data)
+            a1 = self.requests.get(url, 'post', data=data, proxies = proxies)
             login = False
         else:
-            if proxy:
-                if isinstance(proxy, dict):
-                    try:
-                        a1 = requests.post(url, data=data, proxies = proxy)
-                    except:
+            nt = 1
+            while 1:
+                try:
+                    a1 = requests.post(url, data=data, proxies = proxies)
+                except:
+                    tr, vl, tb = sys.exc_info()
+                    error_type = vl.__class__.__name__
+                    debug(error_type = error_type)
+                    error_full = traceback.format_exc()
+                    debug(error_full = error_full)
+                    debug(n = n)
+                    debug(retries = retries)
+                    if not nt == retries:
+                        nt += 1
+                        time.sleep(sleep)
+
+                    else:
+                        error = True
+                        debug(error = error)
+                        
                         if self.proxies:
                             index = self.proxies.index(urlparse(proxy.get('http')).netloc)
                             if not index > len(self.proxies):
                                 return self.get_download_link(url, proxy = self.proxies[index + 1])
-                        # else:
-                        #     return False, warn_minutes, info
-                else:
-                    try:
-                        proxies = {'http':'http://' + proxy, 'https':'https://' + proxy}
-                        a1 = requests.post(url, data=data, proxies = proxies)
-                    except:
-                        if self.proxies:
-                            index = self.proxies.index(proxy)
-                            if not index > len(self.proxies):
-                                return self.get_download_link(url, proxy = self.proxies[index + 1])
-                        # else:
-                        #     return False, warn_minutes, info
-
-            else:
-                a1 = requests.post(url, data=data)
-
+                        else:
+                            break
+            
         if not a1:
             print(make_colors("Get download link [2] Failed !", 'lw', 'r'))
             debug(login = login)
-            if login:
-            #     return False, warn_minutes, info
-                self.get_download_link(url, login = True)
+            return False, warn_minutes, info
 
         content = a1.content
         with open("get_download_link.html", 'wb') as ff:
@@ -722,6 +710,8 @@ class onefichier(object):
                             self.use_proxy_config = True
                             status, link, info = self.get_download_link(url, False, proxy = proxies) 
                             if status:
+                                self.config.write_config('download_proxy', 'http', urlparse(proxies.get('http')).netloc)
+                                self.config.write_config('download_proxy', 'https', urlparse(proxies.get('https')).netloc)
                                 return status, link, info
                         if not self.use_proxy_config_download:
                             proxies = {}
@@ -736,35 +726,34 @@ class onefichier(object):
                             if status:
                                 return status, link, info
                         if not self.use_proxy_proxies:
-                            if not self.proxies:
-                                pt = proxy_tester()
-                                list_proxy = pt.getProxyList()
-                                self.proxies = [i.get('ip') + ":" + i.get('port') for i in list_proxy]
-                            for pr in self.proxies:
-                                proxies = self.build_proxy(pr)
-                                self.sess.proxies.update(proxies)
-                                status, link, info = self.get_download_link(url, False, proxy = proxies) 
-                                if status:
-                                    self.config.write_config('download_proxy', 'http', pr)
-                                    self.config.write_config('download_proxy', 'https', pr)
-                                    index = self.proxies.index(pr) + 1
-                                    self.proxies = self.proxies[index:]
-                                    return status, link, info
-                        if status:
-                            self.config.write_config('download_proxy', 'http', urlparse(proxies.get('http')).netloc)
-                            self.config.write_config('download_proxy', 'https', urlparse(proxies.get('https')).netloc)
-                        # else:
-                        #     time.sleep(2)
-                        #     if print_wait:
-                        #         print(make_colors("waiting for: 2 seconds for {} minutes".format(warn_minutes), 'lightwhite', 'lightred', ['blink']))
-                        #     sys.stdout.write(".")
-                        #     sys.stdout.flush()
-                        #     return self.get_download_link(url, False) 
+                            ntp = 0
+                            while 1:
+                                if not self.proxies:
+                                    if not ntp == retries_proxy:
+                                        pt = proxy_tester()
+                                        list_proxy = pt.getProxyList()
+                                        self.proxies = [i.get('ip') + ":" + i.get('port') for i in list_proxy]
+                                    else:
+                                        time.sleep(2)
+                                        if print_wait:
+                                            print(make_colors("waiting for: 2 seconds for {} minutes".format(warn_minutes), 'lightwhite', 'lightred', ['blink']))
+                                        sys.stdout.write(".")
+                                        sys.stdout.flush()
+                                        self.use_proxy_proxies = True
+                                        return self.get_download_link(url, False) 
 
-                        # time.sleep(60)
-                        # if print_wait:
-                        #     print(make_colors("waiting for: 1 minute", 'lightwhite', 'lightred', ['blink']))
-                        # return self.get_download_link(url) 
+
+                                for pr in self.proxies:
+                                    proxies = self.build_proxy(pr)
+                                    self.sess.proxies.update(proxies)
+                                    status, link, info = self.get_download_link(url, False, proxy = proxies) 
+                                    if status:
+                                        self.config.write_config('download_proxy', 'http', pr)
+                                        self.config.write_config('download_proxy', 'https', pr)
+                                        index = self.proxies.index(pr) + 1
+                                        self.proxies = self.proxies[index:]
+                                        return status, link, info
+                        
                     elif str(warn_minutes).isdigit() and int(warn_minutes) == 1:
                         time.sleep(30)
                         if print_wait:
@@ -777,6 +766,11 @@ class onefichier(object):
                         sys.stdout.write(".")
                         sys.stdout.flush()
                         return self.get_download_link(url, False) 
+                    else:
+                        time.sleep(int(warn_minutes) / 2)
+                        if print_wait:
+                            print(make_colors("waiting for: {} minute for {}".format(int(warn_minutes) / 2, warn_minutes), 'lightwhite', 'lightred', ['blink']))
+                        return self.get_download_link(url) 
                 return False, warn_minutes, info
 
         return False, warn_minutes, info
