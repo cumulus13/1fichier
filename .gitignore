@@ -15,3 +15,5 @@ traceback.log
 *temp/
 putty.log
 1fichier.ini
+*.html
+*.htm
