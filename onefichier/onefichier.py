@@ -68,7 +68,10 @@ class onefichier(object):
         self.use_proxy_config_download = False
         self.use_proxy_proxies = False
         self.timeout = 10
+        self.retries = 10
+        self.sleep = 1
         self.bar = progressbar.ProgressBar(max_value = self.max_value, prefix = self.prefix, variables = self.variables)
+        self.report = ''
 
     def set_header(self, header_str = None):
         """generate mediafire url to direct download url
@@ -99,8 +102,11 @@ class onefichier(object):
         debug(headers = headers)
         return headers    
 
-    def request(self, url, rtype = 'get', headers = None, data = {}, params = {}, timeout = 10, retries = 10, sleep = 1, proxies = {}):
-        
+    def request(self, url, rtype = 'get', headers = None, data = {}, params = {}, timeout = None, retries = None, sleep = None, proxies = {}):
+        timeout = timeout or self.timeout
+        retries = retries or self.retries
+        sleep = sleep or self.sleep
+
         def browser(url, rtype, headers, data, params, timeout, retries, sleep, proxies = {}):
             n = 1
             error = False
@@ -276,7 +282,7 @@ class onefichier(object):
         if q == 'x' or q == 'q':
             sys.exit(make_colors("EXIT !", 'lw','lr'))
     
-    def login(self, username=None, password=None, url_code = 'login.pl', relogin = False):
+    def login(self, username=None, password=None, url_code = 'login.pl', relogin = False, timeout = None):
         cookies = ''
         error = False
         if self.config.get_config('cookies', 'cookies') and not relogin:
@@ -316,7 +322,8 @@ class onefichier(object):
 
         #a = self.sess.post(url, data = data)
 
-        a = self.request(url, data = data, rtype = 'post')
+        a = self.request(url, data = data, rtype = 'post', timeout = timeout)
+        
         debug(a = a)
         #pause()
         if not a:
@@ -551,7 +558,7 @@ class onefichier(object):
 
         b = bs(a.content, 'lxml')
         hidden = b.find('input', {'type':'hidden'})
-        return hidden
+        return hidden, b
 
     def get_download_link(self, url, print_wait = True, retries = 10, proxy = None, login = False, timeout = 10, retries_proxy = 2):
         debug(url = url)
@@ -563,7 +570,7 @@ class onefichier(object):
         error = False
         if proxy:
             proxies = self.build_proxy(proxy)
-        hidden = self.get_hidden(url, proxies, login, timeout)
+        hidden, b = self.get_hidden(url, proxies, login, timeout)
         if not hidden:
             proxies = {}
             if self.config.get_config('proxy', 'http') or self.config.get_config('proxy', 'https'):
@@ -572,7 +579,7 @@ class onefichier(object):
                     proxies.update({'https':'https://' + self.config.get_config('proxy', 'http')})
                 if self.config.get_config('proxy', 'https'):
                     proxies.update({'https':'https://' + self.config.get_config('proxy', 'https')})
-            hidden = self.get_hidden(url, proxies, login, timeout)
+            hidden, b = self.get_hidden(url, proxies, login, timeout)
         if not hidden:
             proxies = {}
             if self.config.get_config('proxy', 'http') or self.config.get_config('download_proxy', 'https'):
@@ -581,7 +588,7 @@ class onefichier(object):
                     proxies.update({'https':'https://' + self.config.get_config('download_proxy', 'http')})
                 if self.config.get_config('download_proxy', 'https'):
                     proxies.update({'https':'https://' + self.config.get_config('download_proxy', 'https')})
-            hidden = self.get_hidden(url, proxies, login, timeout)
+            hidden, b = self.get_hidden(url, proxies, login, timeout)
         if not hidden:
             if not self.proxies:
                 pt = proxy_tester()
@@ -590,15 +597,17 @@ class onefichier(object):
             for pr in self.proxies:
                 proxies = self.build_proxy(pr)
                 self.sess.proxies.update(proxies)
-                hidden = self.get_hidden(url, proxies, login, timeout)
+                hidden, b = self.get_hidden(url, proxies, login, timeout)
                 if hidden:
                     self.config.write_config('download_proxy', 'http', pr)
                     self.config.write_config('download_proxy', 'https', pr)
                     index = self.proxies.index(pr) + 1
                     self.proxies = self.proxies[index:]
         if hidden:
-            self.config.write_config('download_proxy', 'http', urlparse(proxies.get('http')).netloc)
-            self.config.write_config('download_proxy', 'https', urlparse(proxies.get('https')).netloc)
+            if proxies.get('http'):
+                self.config.write_config('download_proxy', 'http', urlparse(proxies.get('http')).netloc)
+            if proxies.get('https'):
+                self.config.write_config('download_proxy', 'https', urlparse(proxies.get('https')).netloc)
 
         bloc2 = b.find('div', {'class':'bloc2'})
         debug(bloc2 = bloc2)
@@ -775,12 +784,12 @@ class onefichier(object):
 
         return False, warn_minutes, info
 
-    def get_sable(self):
+    def get_sable(self, timeout = None):
         url = self.url + 'console/files.pl?dir_id=0&oby=0&search='
         sable = ''
         def get(proxies = {}):
             sable = ''
-            a = self.request(url, proxies = proxies)
+            a = self.request(url, timeout = timeout)
             debug(a = a)
             #pause()
             if a:
@@ -883,7 +892,7 @@ class onefichier(object):
 
         return proxies, list_proxy
     
-    def list(self, retries = 5):
+    def list(self, retries = 5, timeout = 60):
 
         data = []
         url = self.url + 'console/files.pl?dir_id=0&oby=0&search='
@@ -903,7 +912,7 @@ class onefichier(object):
         n = 1
         error = False
 
-        sable = self.get_sable()
+        sable = self.get_sable(timeout)
         debug(sable = sable)
         debug(SID = self.sess.cookies)
         debug(SID = self.sess.cookies.get_dict())
@@ -1232,10 +1241,11 @@ class onefichier(object):
                         bar.update(bar.max_value/2, task = task, subtask = subtask)
                         #raw_input("Enter to Continue")
                         debug(rel = rel)
-                        if self.rename(rel, new_name):
+                        status, info = self.rename(rel, new_name)
+                        if status:
                             subtask = make_colors(new_name, 'lightwhite', 'blue') + " " + make_colors("[SUCCESS]", 'b', 'lg') + " "    
                         else:
-                            subtask = make_colors(new_name, 'lightwhite', 'blue') + " " + make_colors("[ERROR:FAILED]", 'lw', 'r') + " "    
+                            subtask = make_colors(new_name, 'lightwhite', 'blue') + " " + make_colors("[ERROR:FAILED] [{}]".format(info), 'lw', 'r') + " "    
                         bar.update(bar.max_value, task = task, subtask = subtask)
             elif q and q[-1:] == 'e' and q[:-1].isdigit():
                 debug("q containt 'e'")
@@ -1551,6 +1561,7 @@ class onefichier(object):
     
     def rename(self, id_rel, new_name, proxy = None):
         proxies = self.build_proxy(proxy)
+        debug(proxies = proxies)
         if not self.check_cookies(self.sess.cookies).get('SID'):
             debug("login not use proxies")
             self.login()
@@ -1558,6 +1569,7 @@ class onefichier(object):
             debug("re login not use proxies")
             self.login(relogin = True)
         url = self.url + 'console/frename.pl'
+        debug(url = url)
         data = {
             'newname': new_name,
             'file': id_rel
@@ -1565,11 +1577,16 @@ class onefichier(object):
         debug(data = data)
         a = self.request(url, 'post', data=data, proxies = proxies)
         content = a.content
+        b = bs(content, 'lxml')
+        with open('rename.html', 'wb') as ff:
+            ff.write(content)
         debug(content = content)
+        #pause()
         if 'File renamed successfully' in content:
-            return True
+            return True, ''
         else:
-            return False
+            self.report = b.find('div').text
+            return False, b.find('div').text
     
     def remote_upload(self, links, timeout = 3, retries = 10, renameit = None, proxy = None):
         proxies = self.build_proxy(proxy)
@@ -1669,10 +1686,14 @@ class onefichier(object):
             debug(new_items = new_items)
             
             if len(new_items) == 1:
-                self.rename(new_items[0].get('rel'), renameit)
+                status, info = self.rename(new_items[0].get('rel'), renameit)
+                if status:
+                    subtask = make_colors(new_name, 'lightwhite', 'blue') + " " + make_colors("[RENAME:SUCCESS]", 'b', 'lg') + " "    
+                else:
+                    subtask = make_colors(new_name, 'lightwhite', 'blue') + " " + make_colors("[RENAME:ERROR:FAILED] [{}]".format(info), 'lw', 'r') + " "    
                 data, total = self.list()
                 self.data = data
-        
+        bar.update(bar.max_value, task = task, subtask = subtask)
         return True	
     
     def set_proxy(self, proxy):

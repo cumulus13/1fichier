@@ -67,11 +67,14 @@ class onefichier(object):
         self.use_proxy_config = False
         self.use_proxy_config_download = False
         self.use_proxy_proxies = False
-        self.timeout = 10
+        self.timeout = 60
         self.retries = 10
         self.sleep = 1
-        self.bar = progressbar.ProgressBar(max_value = self.max_value, prefix = self.prefix, variables = self.variables)
+        self.bar = progressbar.ProgressBar(max_value = self.max_value, prefix = self.prefix, variables = self.variables, max_error = False)
         self.report = ''
+        self.hidden_use_proxy_config = False
+        self.hidden_use_proxy_download_config = False
+        self.download_login = True
 
     def set_header(self, header_str = None):
         """generate mediafire url to direct download url
@@ -102,6 +105,9 @@ class onefichier(object):
         debug(headers = headers)
         return headers    
 
+    def requests(self, *args, **kwargs):
+        return self.request(*args, **kwargs)
+    
     def request(self, url, rtype = 'get', headers = None, data = {}, params = {}, timeout = None, retries = None, sleep = None, proxies = {}):
         timeout = timeout or self.timeout
         retries = retries or self.retries
@@ -126,10 +132,16 @@ class onefichier(object):
                 except:
                     pass
                 try:
-                    if rtype == 'post':    
-                        req = self.sess.post(url, data=data, params = params, headers = headers, timeout = timeout, proxies = proxies)
+                    if rtype == 'post':
+                        if self.download_login:
+                            req = self.sess.post(url, data=data, params = params, headers = headers, timeout = timeout, proxies = proxies)
+                        else:
+                            req = requests.post(url, data = data, headers = headers, timeout = timeout, proxies = proxies)
                     else:
-                        req = self.sess.get(url, params = params, headers = headers, timeout = timeout, proxies = proxies)
+                        if self.download_login:
+                            req = self.sess.get(url, params = params, headers = headers, timeout = timeout, proxies = proxies)
+                        else:
+                            req = requests.get(url, params = params, headers = headers, timeout = timeout, proxies = proxies)
                     debug(req = req)
                     # break
                     return req, error, error_type, error_full
@@ -141,9 +153,11 @@ class onefichier(object):
                     debug(error_full = error_full)
                     debug(n = n)
                     debug(retries = retries)
-                    if not n == retries:
+                    if not n == retries or n < retries:
                         n += 1
                         time.sleep(sleep)
+                    elif n > retries:
+                        n == retries                    
                     else:
                         error = True
                         debug(error = error)
@@ -212,7 +226,10 @@ class onefichier(object):
             proxies_conf = {}
             print(make_colors("Use Proxy from config", 'lw', 'r'))
             if self.config.get_config('proxy', 'http'):
-                proxies_conf = {'http':'http://' + self.config.get_config('proxy', 'http')}
+                proxies_conf = {
+                    'http':'http://' + self.config.get_config('proxy', 'http'), 
+                    'https':'https://' + self.config.get_config('proxy', 'http')
+                }
             elif self.config.get_config('proxy', 'http'):
                 proxies_conf = {'https':'https://' + self.config.get_config('proxy', 'http')}
             req, error, error_type, error_full = browser(url, rtype, headers, data, params, timeout, retries, sleep, proxies_conf)
@@ -227,7 +244,10 @@ class onefichier(object):
             proxies_conf = {}
             print(make_colors("Use Proxy from config", 'lw', 'r'))
             if self.config.get_config('download_proxy', 'http'):
-                proxies_conf = {'http':'http://' + self.config.get_config('download_proxy', 'http')}
+                proxies_conf = {
+                    'http':'http://' + self.config.get_config('download_proxy', 'http'),
+                    'https':'https://' + self.config.get_config('download_proxy', 'http'),
+                }
             elif self.config.get_config('download_proxy', 'http'):
                 proxies_conf = {'https':'https://' + self.config.get_config('download_proxy', 'http')}
             req, error, error_type, error_full = browser(url, rtype, headers, data, params, timeout, retries, sleep, proxies_conf)
@@ -371,12 +391,13 @@ class onefichier(object):
             url = self.url
         scheme = urlparse(url).scheme
         n_try = 1
+        pc = proxy_tester()
         list_proxy = pc.getProxyList()
         proxies = {}
-        bar = progressbar.ProgressBar(max_value = self.max_value, prefix = self.prefix, variables = self.variables)
+        #bar = progressbar.ProgressBar(max_value = self.max_value, prefix = self.prefix, variables = self.variables)
         if not proxy:
             while 1:
-                bar.max_value = len(list_proxy)
+                self.bar.max_value = len(list_proxy)
                 c = ''
                 for i in list_proxy:
                     debug(use_proxy = i)
@@ -411,22 +432,22 @@ class onefichier(object):
                                 else:
                                     proxies.update({'http': 'http://' + str(i.get('ip') + ":" + i.get('port')),})
                                     proxy_str = 'http://' + str(i.get('ip') + ":" + i.get('port'))
-                        bar.update(n_try, task = make_colors("Check Proxy", 'black', 'lightgreen'), subtask = make_colors(i.get('ip') + ":" + i.get('port'), 'lightwhite', 'lightblue') + " ")
+                        self.bar.update(n_try, task = make_colors("Check Proxy", 'black', 'lightgreen'), subtask = make_colors(i.get('ip') + ":" + i.get('port'), 'lightwhite', 'lightblue') + " ")
                         try:
                             # requests.request('GET', url, proxies=proxies, verify=False, timeout=3)
                             self.request(url, 'GET', proxies=proxies, verify=False, timeout=3)
                             debug(proxies = proxies)
                             #print("\n")
                             #print(make_colors("Use proxy: ", 'lightyellow') + make_colors(proxies.get(scheme), 'lightwhite', 'blue'))
-                            bar.update(n_try, task = make_colors("Try Proxy", 'lightwhite', 'lightred'), subtask = make_colors(proxy_str, 'lightwhite', 'lightblue') + " ")
+                            self.bar.update(n_try, task = make_colors("Try Proxy", 'lightwhite', 'lightred'), subtask = make_colors(proxy_str, 'lightwhite', 'lightblue') + " ")
                             self.sess.proxies = proxies
                             c = self.login()
                             if c:
                                 break
 
                         except:
-                            bar.max_value = len(list_proxy)
-                            bar.value = n_try
+                            self.bar.max_value = len(list_proxy)
+                            self.bar.value = n_try
 
                         debug(n_try = n_try)
                         if n_try == len(list_proxy):
@@ -436,23 +457,23 @@ class onefichier(object):
                     else:
                         if scheme == 'https' and i.get('https') == 'yes':
                             proxies = {scheme: str(scheme + "://" + i.get('ip') + ":" + i.get('port')),}
-                            bar.update(n_try, task = make_colors("Match Proxy", 'black', 'lightgreen'), subtask = make_colors(proxies.get(scheme), 'lightwhite', 'lightblue') + " ")
+                            self.bar.update(n_try, task = make_colors("Match Proxy", 'black', 'lightgreen'), subtask = make_colors(proxies.get(scheme), 'lightwhite', 'lightblue') + " ")
                             try:
                                 # requests.request('GET', url, proxies=proxies, timeout=3)
                                 self.request(url, 'GET', proxies=proxies, timeout=3)
                                 #print("\n")
                                 #print(make_colors("Use proxy: ", 'lightyellow') + make_colors(proxies.get(scheme), 'lightwhite', 'blue'))
-                                bar.update(n_try, task = make_colors("Try Proxy", 'lightwhite', 'lightred'), subtask = make_colors(proxies.get(scheme), 'lightwhite', 'lightblue') + " ")
+                                self.bar.update(n_try, task = make_colors("Try Proxy", 'lightwhite', 'lightred'), subtask = make_colors(proxies.get(scheme), 'lightwhite', 'lightblue') + " ")
                                 debug(proxies = proxies)
                                 self.sess.proxies = proxies
                                 c = self.login()
                                 if c:
                                     break
                             except:
-                                bar.max_value = len(list_proxy)
-                                bar.value = n_try
+                                self.bar.max_value = len(list_proxy)
+                                self.bar.value = n_try
                         else:
-                            bar.value + 1
+                            self.bar.value + 1
                         debug(n_try = n_try)
                         if n_try == len(list_proxy):
                             break
@@ -461,7 +482,7 @@ class onefichier(object):
 
 
                 if n_try == len(list_proxy):
-                    bar.finish()
+                    self.bar.finish()
                     print("\n")
                     print(make_colors("[ERROR] No Proxy is Matched !", 'lightwhite', 'lightred', ['blink']))
                     break                    
@@ -472,10 +493,10 @@ class onefichier(object):
             if proxy:
                 self.sess.proxies = proxy
                 proxies = proxy
-            bar.max_value = 100
+            self.bar.max_value = 100
             c = self.login()
             if not c:
-                bar.update(100, task = make_colors("ERROR", 'lightwhite', 'lightred'), subtask = make_colors("[ERROR CONNECTION]", 'lightred', 'lightyellow') + " ")
+                self.bar.update(100, task = make_colors("ERROR", 'lightwhite', 'lightred'), subtask = make_colors("[ERROR CONNECTION]", 'lightred', 'lightyellow') + " ")
                 sys.exit(make_colors("[ERROR CONNECTION]", 'lightwhite', 'lightred') + make_colors('Try Again !', 'black', 'lightyellow'))
         return proxies
 
@@ -533,22 +554,54 @@ class onefichier(object):
                 })
         return info
 
-    def get_hidden(self, url, proxy = None, login = False, timeout = 10):
+    def get_hidden(self, url, proxy = None, login = False, timeout = None):
+        timeout = self.timeout or 10
         proxies = self.build_proxy(proxy)
+        debug(proxies = proxies)
         a = None
-        if login:
+        error = error_full = error_type = None
+        sleep = self.sleep
+        retries = 3
+        if login or self.download_login:
             if not self.check_cookies(self.sess.cookies).get('SID'):
                 debug("login not use proxies")
                 self.login()
             if not self.check_cookies(self.sess.cookies).get('SID'):
                 debug("re login not use proxies")
                 self.login(relogin = True)
-            a = self.request(url, proxies = proxies)
-        else:
-            a = requests.get(url, proxies = proxies, timeout = timeout)
-            
-        if not a:
-            print(make_colors("Get download link [1] Failed ! [{}]".format(a.status_code), 'lw', 'r'))
+        a = self.request(url, proxies = proxies, retries = retries)
+        #else:
+            #n = 1
+            #while 1:
+                #try:
+                    #a = requests.get(url, proxies = proxies, timeout = timeout)
+                    #break
+                #except:
+                    #tr, vl, tb = sys.exc_info()
+                    #error_type = vl.__class__.__name__
+                    #debug(error_type = error_type)
+                    #if error == 'ProxyError':
+                        #error = True
+                        #return False, False
+                    #error_full = traceback.format_exc()
+                    #debug(error_full = error_full)
+                    #debug(n = n)
+                    #debug(retries = retries)
+                    #debug(timeout = timeout)
+                    #if not n == retries:
+                        #n += 1
+                        #time.sleep(sleep)
+                    #else:
+                        #error = True
+                        #debug(error = error)
+                        ## #pause()
+                        #break                    
+        if not a:# or error:
+            try:
+                print(make_colors("Get download link [1] Failed ! [{}]".format(a.status_code), 'lw', 'r'))
+            except:
+                pass
+            return False, False
         
         with open("get_download_link.html", 'wb') as ff:
             if a.content:
@@ -560,7 +613,12 @@ class onefichier(object):
         hidden = b.find('input', {'type':'hidden'})
         return hidden, b
 
-    def get_download_link(self, url, print_wait = True, retries = 10, proxy = None, login = False, timeout = 10, retries_proxy = 2):
+    def get_download_link(self, url, print_wait = True, retries = 10, proxy = None, login = False, timeout = None, retries_proxy = 2):
+        b1 = None
+        if self.download_login:
+            self.download_login = False
+        timeout = self.timeout or 10
+        retries = self.retries or 10
         debug(url = url)
         warn_minutes = False
         info = {}
@@ -568,10 +626,13 @@ class onefichier(object):
         error_type = ''
         error_full = ''
         error = False
+        sleep = self.sleep or 10
         if proxy:
             proxies = self.build_proxy(proxy)
+            debug(proxies = proxies)
         hidden, b = self.get_hidden(url, proxies, login, timeout)
-        if not hidden:
+        if not hidden and not self.hidden_use_proxy_config:
+            debug("not hidden 1")
             proxies = {}
             if self.config.get_config('proxy', 'http') or self.config.get_config('proxy', 'https'):
                 if self.config.get_config('proxy', 'http'):
@@ -579,8 +640,11 @@ class onefichier(object):
                     proxies.update({'https':'https://' + self.config.get_config('proxy', 'http')})
                 if self.config.get_config('proxy', 'https'):
                     proxies.update({'https':'https://' + self.config.get_config('proxy', 'https')})
+            debug(proxies = proxies)
             hidden, b = self.get_hidden(url, proxies, login, timeout)
-        if not hidden:
+            self.hidden_use_proxy_config = True
+        if not hidden and not self.hidden_use_proxy_download_config:
+            debug("not hidden 2")
             proxies = {}
             if self.config.get_config('proxy', 'http') or self.config.get_config('download_proxy', 'https'):
                 if self.config.get_config('download_proxy', 'http'):
@@ -588,14 +652,18 @@ class onefichier(object):
                     proxies.update({'https':'https://' + self.config.get_config('download_proxy', 'http')})
                 if self.config.get_config('download_proxy', 'https'):
                     proxies.update({'https':'https://' + self.config.get_config('download_proxy', 'https')})
+            debug(proxies = proxies)
             hidden, b = self.get_hidden(url, proxies, login, timeout)
+            self.hidden_use_proxy_download_config = True
         if not hidden:
+            debug("not hidden 3")
             if not self.proxies:
                 pt = proxy_tester()
                 list_proxy = pt.getProxyList()
                 self.proxies = [i.get('ip') + ":" + i.get('port') for i in list_proxy]
             for pr in self.proxies:
                 proxies = self.build_proxy(pr)
+                debug(proxies = proxies)
                 self.sess.proxies.update(proxies)
                 hidden, b = self.get_hidden(url, proxies, login, timeout)
                 if hidden:
@@ -603,12 +671,21 @@ class onefichier(object):
                     self.config.write_config('download_proxy', 'https', pr)
                     index = self.proxies.index(pr) + 1
                     self.proxies = self.proxies[index:]
+                    self.hidden_use_proxy_config = False
+                    self.hidden_use_proxy_download_config = False
         if hidden:
+            debug(hidden = hidden)
             if proxies.get('http'):
-                self.config.write_config('download_proxy', 'http', urlparse(proxies.get('http')).netloc)
+                try:
+                    self.config.write_config('download_proxy', 'http', urlparse(proxies.get('http')).netloc)
+                except:
+                    pass
             if proxies.get('https'):
-                self.config.write_config('download_proxy', 'https', urlparse(proxies.get('https')).netloc)
-
+                try:
+                    self.config.write_config('download_proxy', 'https', urlparse(proxies.get('https')).netloc)
+                except:
+                    pass
+        
         bloc2 = b.find('div', {'class':'bloc2'})
         debug(bloc2 = bloc2)
         if bloc2:
@@ -629,44 +706,95 @@ class onefichier(object):
                 return False, warn_minutes, info
         debug(hidden = hidden)
         data = {'adz':hidden.get('value')}
+        debug(data = data)
         debug(login = login)
         a1 = None
-        if login:
-            a1 = self.requests.get(url, 'post', data=data, proxies = proxies)
-            login = False
+        if login or self.download_login:
+            a1 = self.requests(url, 'post', data=data, proxies = proxies)
         else:
             nt = 1
             while 1:
                 try:
-                    a1 = requests.post(url, data=data, proxies = proxies)
+                    debug(proxies = proxies)
+                    a1 = requests.post(url, data=data, proxies = proxies, timeout = timeout)
+                    break
                 except:
                     tr, vl, tb = sys.exc_info()
                     error_type = vl.__class__.__name__
+                    if error_type == 'ProxyError':
+                        retries = 2
+                    else:
+                        retries = self.retries
                     debug(error_type = error_type)
                     error_full = traceback.format_exc()
                     debug(error_full = error_full)
-                    debug(n = n)
+                    debug(nt = nt)
                     debug(retries = retries)
-                    if not nt == retries:
+                    debug(timeout = timeout)
+                    if not nt == retries or nt < retries:
                         nt += 1
                         time.sleep(sleep)
-
+                    elif nt > retries:
+                        nt == retries
                     else:
+                        if timeout < 60:
+                            timeout = 60                        
                         error = True
                         debug(error = error)
                         
-                        if self.proxies:
-                            index = self.proxies.index(urlparse(proxy.get('http')).netloc)
-                            if not index > len(self.proxies):
-                                return self.get_download_link(url, proxy = self.proxies[index + 1])
+                        if not self.hidden_use_proxy_config:
+                            debug("get download link 1")
+                            proxies = {}
+                            if self.config.get_config('proxy', 'http') or self.config.get_config('proxy', 'https'):
+                                if self.config.get_config('proxy', 'http'):
+                                    proxies.update({'http':'http://' + self.config.get_config('proxy', 'http')})
+                                    proxies.update({'https':'https://' + self.config.get_config('proxy', 'http')})
+                                if self.config.get_config('proxy', 'https'):
+                                    proxies.update({'https':'https://' + self.config.get_config('proxy', 'https')})
+                            debug(proxies = proxies)
+                            self.hidden_use_proxy_config = True
+                            nt = 1
+                        elif not self.hidden_use_proxy_download_config:
+                            debug("get download link 2")
+                            proxies = {}
+                            if self.config.get_config('proxy', 'http') or self.config.get_config('download_proxy', 'https'):
+                                if self.config.get_config('download_proxy', 'http'):
+                                    proxies.update({'http':'http://' + self.config.get_config('download_proxy', 'http')})
+                                    proxies.update({'https':'https://' + self.config.get_config('download_proxy', 'http')})
+                                if self.config.get_config('download_proxy', 'https'):
+                                    proxies.update({'https':'https://' + self.config.get_config('download_proxy', 'https')})
+                            debug(proxies = proxies)
+                            self.hidden_use_proxy_download_config = True
+                            nt = 1
                         else:
-                            break
-            
+                            if self.proxies:
+                                if proxies:
+                                    index = self.proxies.index(urlparse(proxies.get('http') or proxies.get('https')).netloc)
+                                    debug(index = index)
+                                    if not index > len(self.proxies):
+                                        proxies = self.build_proxy(self.proxies[index + 1])
+                                        nt = 1
+                                        debug(proxies = proxies)
+                                        self.proxies.remove(self.proxies[index])
+                                else:
+                                    proxies = self.build_proxy(self.proxies[0])
+                                    nt = 1
+                                    debug(proxies = proxies)
+                                    #return self.get_download_link(url, proxy = proxies)
+                            else:
+                                break
+        if error:
+            print(make_colors("Failed to get download link ! with login status is {}".format(str(login)), 'lw', 'r'))
+            return False, warn_minutes, info
         if not a1:
             print(make_colors("Get download link [2] Failed !", 'lw', 'r'))
             debug(login = login)
             return False, warn_minutes, info
-
+        else:
+            self.download_login = True
+            login = True
+            self.hidden_use_proxy_config = False
+            self.hidden_use_proxy_download_config = False
         content = a1.content
         with open("get_download_link.html", 'wb') as ff:
             ff.write(content)
@@ -706,7 +834,8 @@ class onefichier(object):
                     warning = re.sub("\r", "", warning)
                     if print_wait:
                         print(make_colors(warning, 'lightwhite', 'lightred', ['blink']))
-                    if str(warn_minutes).isdigit() and int(warn_minutes) > 1:
+                    debug(warn_minutes = warn_minutes, debug = True)
+                    if (str(warn_minutes).isdigit() and int(warn_minutes) > 1) or not warn_minutes:
                         status = False
                         if not self.use_proxy_config:
                             proxies = {}
@@ -719,8 +848,14 @@ class onefichier(object):
                             self.use_proxy_config = True
                             status, link, info = self.get_download_link(url, False, proxy = proxies) 
                             if status:
-                                self.config.write_config('download_proxy', 'http', urlparse(proxies.get('http')).netloc)
-                                self.config.write_config('download_proxy', 'https', urlparse(proxies.get('https')).netloc)
+                                try:
+                                    self.config.write_config('download_proxy', 'http', urlparse(proxies.get('http')).netloc)
+                                except:
+                                    pass
+                                try:
+                                    self.config.write_config('download_proxy', 'https', urlparse(proxies.get('https')).netloc)
+                                except:
+                                    pass
                                 return status, link, info
                         if not self.use_proxy_config_download:
                             proxies = {}
@@ -738,10 +873,12 @@ class onefichier(object):
                             ntp = 0
                             while 1:
                                 if not self.proxies:
-                                    if not ntp == retries_proxy:
+                                    if not ntp == retries_proxy or ntp < retries_proxy:
                                         pt = proxy_tester()
                                         list_proxy = pt.getProxyList()
                                         self.proxies = [i.get('ip') + ":" + i.get('port') for i in list_proxy]
+                                    elif ntp > retries:
+                                        ntp == retries                                    
                                     else:
                                         time.sleep(2)
                                         if print_wait:
@@ -776,7 +913,10 @@ class onefichier(object):
                         sys.stdout.flush()
                         return self.get_download_link(url, False) 
                     else:
-                        time.sleep(int(warn_minutes) / 2)
+                        if warn_minutes:
+                            time.sleep(int(warn_minutes) / 2)
+                        else:
+                            time.sleep(1)
                         if print_wait:
                             print(make_colors("waiting for: {} minute for {}".format(int(warn_minutes) / 2, warn_minutes), 'lightwhite', 'lightred', ['blink']))
                         return self.get_download_link(url) 
@@ -1083,7 +1223,7 @@ class onefichier(object):
         debug(q = q)
         if not q:
             q = self.print_nav()
-        bar = progressbar.ProgressBar(max_value = self.max_value, prefix = self.prefix, variables = self.variables)
+        #bar = progressbar.ProgressBar(max_value = self.max_value, prefix = self.prefix, variables = self.variables)
         
         if q:
             q = str(q).strip()
@@ -1091,7 +1231,7 @@ class onefichier(object):
                 debug("q is digit")
                 task = make_colors("Download Link", 'lightwhite', 'blue')
                 subtask = make_colors("Get", 'lightwhite', 'magenta') + " "
-                bar.update(bar.value + 1, task = task, subtask = subtask)
+                self.bar.update(self.bar.value + 1, task = task, subtask = subtask)
                 
                 debug(data_selected = data[int(q) - 1])
                 link = self.download_link(data[int(q) - 1].get('rel'))
@@ -1099,13 +1239,14 @@ class onefichier(object):
 
                 task = make_colors("Generator", 'lightwhite', 'blue')
                 subtask = make_colors("Convert", 'lightwhite', 'magenta') + " "
-                bar.update(bar.value + 1, task = task, subtask = subtask)
+                self.bar.update(self.bar.value + 1, task = task, subtask = subtask)
                 download_link = self.get_download_link(link)
                 if download_link[0]:
                     print(make_colors("GENERATE:", 'r', 'lw') + " " + make_colors(download_link[1], 'b', 'ly'))
                     print(make_colors("NAME    :", 'lw', 'bl') + " " + make_colors(download_link[2].get('name'), 'lw', 'bl'))
                     print(make_colors("SIZE    :", 'b', 'lg') + " " + make_colors(download_link[2].get('size'), 'b', 'lg'))
                     print(make_colors("DATE    :", 'lw', 'm') + " " + make_colors(download_link[2].get('date'), 'lw', 'm'))
+                    qp = raw_input(make_colors("Enter to Continue [enter]", 'b', 'lg'))
                 else:
                     print(make_colors("GENERATE:", 'r', 'lw') + " " + make_colors("FAILED !", 'lw', 'r'))
             elif q and q[-1:] == 'd':# and q[:-1].isdigit():
@@ -1114,12 +1255,15 @@ class onefichier(object):
                     number_selected = str(q).strip()[:-1]
                 else:
                     number_selected = raw_input(make_colors("Select number to download: ", 'lightwhite', 'lightred'))
-
+                debug(number_selected = number_selected, debug = True)
                 if "," in number_selected or " " in number_selected:
+                    debug("method 1", debug = True)
                     number_selected = re.sub(" ", "", number_selected)
                     number_selected = re.split(",| ", number_selected)
                     all_number_selected += number_selected
+                    number_selected = list(set(all_number_selected))
                 elif "-" in number_selected:
+                    debug("method 2", debug = True)
                     number_selected = re.sub(" ", "", number_selected)
                     debug(number_selected = number_selected)
                     number_selected = re.split("-", number_selected)
@@ -1127,30 +1271,32 @@ class onefichier(object):
                     number_selected = list(range(int(number_selected[0]), (int(number_selected[1]) + 1)))
                     debug(number_selected = number_selected)
                     all_number_selected += number_selected
+                    number_selected = list(set(all_number_selected))
                 else:
                     number_selected = [number_selected]
-                number_selected = list(set(all_number_selected))
-                # debug(number_selected = number_selected)
+                    
+                debug(number_selected = number_selected, debug = True)
                 # #pause()
 
                 debug("q containt 'd'")
-                for q in number_selected:
+                debug(number_selected = sorted(number_selected), debug = True)
+                for qn in sorted(number_selected):
                     task = make_colors("Download Link", 'lightwhite', 'blue')
                     subtask = make_colors("Get", 'lightwhite', 'magenta') + " "
-                    bar.update(bar.value + 1, task = task, subtask = subtask)
+                    self.bar.update(self.bar.value + 1, task = task, subtask = subtask)
                     #print("data.get(list(data.keys())[0]).keys() =", data.get(list(data.keys())[0]).keys())
-                    debug(data_selected = data[int(q) - 1])
-                    link = self.download_link(data[int(q) - 1].get('rel'))
-                    name = unidecode(data[int(q) - 1].get('name'))
+                    debug(data_selected = data[int(qn) - 1])
+                    link = self.download_link(data[int(qn) - 1].get('rel'))
+                    name = unidecode(data[int(qn) - 1].get('name'))
 
                     task = make_colors("Download Link", 'lightwhite', 'blue')
                     subtask = make_colors("Convert", 'lightwhite', 'magenta') + " "
-                    bar.update(bar.value + 1, task = task, subtask = subtask)
+                    self.bar.update(self.bar.value + 1, task = task, subtask = subtask)
                     download_link = self.get_download_link(link)
                     debug(download_link = download_link)
                     task = make_colors("Download", 'lightwhite', 'blue')
                     subtask = make_colors(name, 'lightred', 'lightyellow') + " "
-                    bar.update(bar.value + 1, task = task, subtask = subtask)
+                    self.bar.update(self.bar.value + 1, task = task, subtask = subtask)
                     print(make_colors("DOWNLOAD LINK:", 'b', 'y') + " " + make_colors(download_link[1], 'b', 'c'))
                     print(make_colors("DOWNLOAD PATH:", 'b', 'lc') + " " + make_colors(download_path, 'b', 'c'))
                     if download_link[0]:
@@ -1158,50 +1304,53 @@ class onefichier(object):
                     else:
                         task = make_colors("Download", 'lightwhite', 'lightred')
                         subtask = make_colors("ERROR Wait for " + download_link[1] + " minutes", 'lightred', 'lightwhite') + " "
-                    bar.update(bar.max_value, task = task, subtask = subtask)					
-                    bar.value = 0
-            elif q and q[-1:] == 'm' and q[:-1].isdigit():
+                    self.bar.update(self.bar.max_value, task = task, subtask = subtask)					
+                    self.bar.value = 0
+            elif q and q[-1:] == 'm':
                 debug("q containt 'm'")
                 if len(str(q).strip()) > 1:
                     number_selected = str(q).strip()[:-1]
                 else:
                     number_selected = raw_input(make_colors("Select number to remove: ", 'lightwhite', 'lightred'))
-
+                
+                debug(number_selected = number_selected)
                 if number_selected and str(number_selected).isdigit() and int(number_selected) <= len(data):
-                    self._remove(number_selected, data, sort_by, bar)
+                    self._remove(number_selected, data, sort_by, self.bar)
 
                 elif "," in number_selected or " " in number_selected:
-                    number_selected = re.sub(" ", "", number_selected)
-                    list_number_selected = re.split(",| ", number_selected)
+                    #number_selected = re.sub(" ", "", number_selected)
+                    list_number_selected = sorted(list(filter(None, re.split(",| ", number_selected))))
                     debug(list_number_selected = list_number_selected)
                     for i in list_number_selected:
-                        bar.max_value = len(list_number_selected)
-                        number_selected = str(i).strip()
-                        if number_selected and str(number_selected).isdigit() and int(number_selected) <= len(data):
-                            self._remove(number_selected, data, sort_by, bar)
-                        else:
-                            task = make_colors("Deleting", "lightwhite", "lightred")
-                            subtask = make_colors("ERROR", 'lightwhite', 'lightred') + " "
-                            bar.update(bar.value + 1, task = task, subtask = subtask)
+                        if i.isdigit():
+                            self.bar.max_value = len(list_number_selected)
+                            number_selected = str(i).strip()
+                            if number_selected and str(number_selected).isdigit() and int(number_selected) <= len(data):
+                                self._remove(number_selected, data, sort_by, self.bar)
+                            else:
+                                task = make_colors("Deleting", "lightwhite", "lightred")
+                                subtask = make_colors("ERROR", 'lightwhite', 'lightred') + " "
+                                self.bar.update(self.bar.value + 1, task = task, subtask = subtask)
 
                 elif "-" in number_selected:
                     number_selected = re.sub(" ", "", number_selected)
                     debug(number_selected = number_selected)
                     number_selected = re.split("-", number_selected)
-                    debug(number_selected = number_selected)
-                    list_number_selected = list(range(int(number_selected[0]), (int(number_selected[1]) + 1)))
+                    debug(list_number_selected = list_number_selected)
+                    list_number_selected = sorted(list(range(int(number_selected[0]), (int(number_selected[1]) + 1))))
                     debug(list_number_selected = list_number_selected)
                     # list_number_selected_str = str(list_number_selected)[1:-1] + "m"
                     # debug(list_number_selected_str = list_number_selected_str)
                     for i in list_number_selected:
-                        bar.max_value = len(list_number_selected)
+                        self.bar.max_value = len(list_number_selected)
                         number_selected = str(i).strip()
-                        if number_selected and str(number_selected).isdigit() and int(number_selected) <= len(data):
-                            self._remove(number_selected, data, sort_by, bar)
-                        else:
-                            task = make_colors("Deleting", "lightwhite", "lightred")
-                            subtask = make_colors("ERROR", 'lightwhite', 'lightred') + " "
-                            bar.update(bar.value + 1, task = task, subtask = subtask)
+                        if i.isdigit():
+                            if number_selected and str(number_selected).isdigit() and int(number_selected) <= len(data):
+                                self._remove(number_selected, data, sort_by, self.bar)
+                            else:
+                                task = make_colors("Deleting", "lightwhite", "lightred")
+                                subtask = make_colors("ERROR", 'lightwhite', 'lightred') + " "
+                                self.bar.update(self.bar.value + 1, task = task, subtask = subtask)
             elif "rn" in q or "rn=" in q or "rn =" in q:
                 debug("q containt 'rn'")
                 number_selected = ''
@@ -1238,7 +1387,7 @@ class onefichier(object):
                         name = data[int(number_selected) - 1].get('name')
                         task = make_colors(name, 'b', 'lg') + " " + make_colors("Rename to", "lightwhite", "lightred")                        
                         subtask = make_colors(new_name, 'lightwhite', 'blue') + " "    
-                        bar.update(bar.max_value/2, task = task, subtask = subtask)
+                        self.bar.update(self.bar.max_value/2, task = task, subtask = subtask)
                         #raw_input("Enter to Continue")
                         debug(rel = rel)
                         status, info = self.rename(rel, new_name)
@@ -1246,7 +1395,7 @@ class onefichier(object):
                             subtask = make_colors(new_name, 'lightwhite', 'blue') + " " + make_colors("[SUCCESS]", 'b', 'lg') + " "    
                         else:
                             subtask = make_colors(new_name, 'lightwhite', 'blue') + " " + make_colors("[ERROR:FAILED] [{}]".format(info), 'lw', 'r') + " "    
-                        bar.update(bar.max_value, task = task, subtask = subtask)
+                        self.bar.update(self.bar.max_value, task = task, subtask = subtask)
             elif q and q[-1:] == 'e' and q[:-1].isdigit():
                 debug("q containt 'e'")
                 if len(str(q).strip()) > 1:
@@ -1255,7 +1404,7 @@ class onefichier(object):
                     number_selected = raw_input(make_colors("Select number to export: ", 'lightwhite', 'lightred'))
                 task = make_colors("Export", "lightwhite", "blue")
                 subtask = make_colors("start", 'black', 'lightgreen') + " "
-                bar.update(bar.value + 5, task = task, subtask = subtask)
+                self.bar.update(self.bar.value + 5, task = task, subtask = subtask)
                 if number_selected and str(number_selected).isdigit() and int(number_selected) <= len(data):
                     debug(data_selected = data[int(number_selected) - 1])
                     rel = data[int(number_selected) - 1].get('rel')
@@ -1263,12 +1412,12 @@ class onefichier(object):
                 else:
                     task = make_colors("Export", "lightwhite", "lightred")
                     subtask = make_colors("ERROR", 'lightwhite', 'lightred') + " "
-                    bar.update(bar.max_value, task = task, subtask = subtask)
+                    self.bar.update(self.bar.max_value, task = task, subtask = subtask)
 
                 task = make_colors("Export", "lightwhite", "blue")
                 debug(rel = rel)
                 self.export(rel, download_path)
-                bar.update(bar.max_value, task = task, subtask = subtask)
+                self.bar.update(self.bar.max_value, task = task, subtask = subtask)
             elif q == 'r':
                 debug("q is 'r'")
                 qr = raw_input(make_colors("Input Remote URL: ", 'lightwhite', 'blue'))
@@ -1297,7 +1446,7 @@ class onefichier(object):
                 debug("q containt 'x' or 'q'")
                 task = make_colors("EXIT", 'lightwhite', 'lightred')
                 subtask = make_colors("System Exit !", 'lightwhite', 'lightred') + " "
-                bar.update(self.max_value, task = task, subtask = subtask)
+                self.bar.update(self.max_value, task = task, subtask = subtask)
                 print("\n")
                 sys.exit(make_colors("EXIT !", 'lightwhite', 'lightred'))
                 #sys.exit()
@@ -1355,6 +1504,11 @@ class onefichier(object):
         make_colors("[n = Number selected] default select number is download n", 'lightwhite', 'lightblue') + ": "
 
         q = raw_input(note1)
+        if q == 'q' or q == 'quit' or q == 'exit' or q == 'x':
+            task = make_colors("EXIT", 'lightwhite', 'lightred')
+            subtask = make_colors("System Exit !", 'lightwhite', 'lightred') + " "
+            self.bar.update(self.max_value, task = task, subtask = subtask)            
+            sys.exit(make_colors("System Exit !", 'lw', 'r'))
         return q		
     
     def build_dict(self, seq, key):
@@ -1375,6 +1529,7 @@ class onefichier(object):
                 'selected[]':id_rel,
             }
             a = self.request(url, 'post', data=data)
+                
             content = a.content
             b = bs(content, 'lxml')
             download_link = b.find('textarea').text
@@ -1552,12 +1707,13 @@ class onefichier(object):
         name = unidecode(data[int(number_selected) - 1].get('name'))
         
         subtask = make_colors(name, 'lightwhite', 'blue') + " "
-        task = make_colors("Deleting", "lightwhite", "lightred")                        
-        bar.update(5, task = task, subtask = subtask)
+        task = make_colors("Deleting", "lightwhite", "lightred")
+        self.bar.max_error = False
+        self.bar.update(5, task = task, subtask = subtask)
         #raw_input("Enter to Continue")
         debug(rel = rel)
         self.remove(rel, proxy = proxies)
-        bar.update(bar.max_value, task = task, subtask = subtask)
+        self.bar.update(self.bar.max_value, task = task, subtask = subtask)
     
     def rename(self, id_rel, new_name, proxy = None):
         proxies = self.build_proxy(proxy)
@@ -1614,9 +1770,11 @@ class onefichier(object):
                     a = self.request(url, 'post', data = post_data, timeout = timeout, proxies = proxies)
                     break
                 except:
-                    if not n == retries:
+                    if not n == retries or n < retries:
                         n += 1
                         time.sleep(1)
+                    elif n > retries:
+                        n == retries                    
                     else:
                         error = True
                         break
@@ -1633,7 +1791,7 @@ class onefichier(object):
             check = re.findall('\d+ recorded links', content)
             debug(check = check)
             if check:
-                bar = progressbar.ProgressBar(max_value = self.max_value, prefix = self.prefix, variables = self.variables)
+                #bar = progressbar.ProgressBar(max_value = self.max_value, prefix = self.prefix, variables = self.variables)
                 task = make_colors("Action", "lightwhite", "blue")
                 subtask = make_colors("RemoteUpload", "lightwhite", "magenta") + " "
                 while 1:
@@ -1642,25 +1800,25 @@ class onefichier(object):
                     if data_done:
                         if data_done == 'error':
                             subtask = make_colors("RemoteUpload", "lightwhite", "magenta") + " " + make_colors("[{}]".format(self.status_message), 'lw', 'r') + " "
-                            bar.update(self.max_value, task = task, subtask = subtask)
+                            self.bar.update(self.max_value, task = task, subtask = subtask)
                             break
                         for j in data_done:
                             if j.get('link') == i:
-                                bar.update(self.max_value, task = task, subtask = subtask)
+                                self.bar.update(self.max_value, task = task, subtask = subtask)
                                 done = True
                                 break
                         if done:
                             break
                     else:
                         if i in self.check_todo(proxy = proxies):
-                            if bar.value == self.max_value:
-                                bar.value = 0							
-                            bar.update(bar.value + 4, task = task, subtask = subtask)
+                            if self.bar.value == self.max_value:
+                                self.bar.value = 0							
+                            self.bar.update(self.bar.value + 4, task = task, subtask = subtask)
                             time.sleep(2)
                         else:
-                            if bar.value == self.max_value:
-                                bar.value = 0
-                            bar.update(bar.value + 4, task = task, subtask = subtask)
+                            if self.bar.value == self.max_value:
+                                self.bar.value = 0
+                            self.bar.update(self.bar.value + 4, task = task, subtask = subtask)
                             time.sleep(2)
             else:
                 return False
@@ -1688,12 +1846,12 @@ class onefichier(object):
             if len(new_items) == 1:
                 status, info = self.rename(new_items[0].get('rel'), renameit)
                 if status:
-                    subtask = make_colors(new_name, 'lightwhite', 'blue') + " " + make_colors("[RENAME:SUCCESS]", 'b', 'lg') + " "    
+                    subtask = make_colors(renameit, 'lightwhite', 'blue') + " " + make_colors("[RENAME:SUCCESS]", 'b', 'lg') + " "    
                 else:
-                    subtask = make_colors(new_name, 'lightwhite', 'blue') + " " + make_colors("[RENAME:ERROR:FAILED] [{}]".format(info), 'lw', 'r') + " "    
+                    subtask = make_colors(renameit, 'lightwhite', 'blue') + " " + make_colors("[RENAME:ERROR:FAILED] [{}]".format(info), 'lw', 'r') + " "    
                 data, total = self.list()
                 self.data = data
-        bar.update(bar.max_value, task = task, subtask = subtask)
+        self.bar.update(self.bar.max_value, task = task, subtask = subtask)
         return True	
     
     def set_proxy(self, proxy):
@@ -1728,7 +1886,7 @@ class onefichier(object):
 
     def usage(self):
         parser = argparse.ArgumentParser(formatter_class = argparse.RawTextHelpFormatter)
-        parser.add_argument('-b', '--sort-by', action = 'store', help = 'Sortby: time/timestamp, date, name, rel, size', default = 'time')
+        parser.add_argument('-b', '--sort-by', action = 'store', help = 'Sortby: time/timestamp, date, name, rel, size', default = 'date')
         parser.add_argument('-r', '--remote-upload', action = 'store', help = 'Remote Upload, "c" = get url from clipboard ', nargs = '*')
         parser.add_argument('-n', '--rename', action = 'store', help = 'Rename after/or/and Remote Upload')
         parser.add_argument('-p', '--download-path', action = 'store', help = 'Download Path or Export save path', default = os.getcwd())
@@ -1803,7 +1961,7 @@ if __name__ == '__main__':
     #c.remove("C_0_g38aio8euw61hrvjvxw5")
     # c.get_download_link(sys.argv[1])
     # c.get_download_link("https://1fichier.com/?13tkjkqtegzxu5ilewnl")
-    c#.get_download_link("https://1fichier.com/?vmq3xfyq9rzl5hm68d68")
+    #.get_download_link("https://1fichier.com/?vmq3xfyq9rzl5hm68d68")
     #c.login()
     #c.list()
     #dl = c.download_link("C_0_13tkjkqtegzxu5ilewnl")
