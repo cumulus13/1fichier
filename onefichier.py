@@ -86,7 +86,7 @@ class onefichier(object):
         Returns:
             TYPE: dict: headers data
         """
-
+        headers = {}
         if not header_str:
             header_str ="""accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9
             accept-encoding: gzip, deflate
@@ -116,10 +116,12 @@ class onefichier(object):
             error_type = ''
             error_full = ''
             req = None
-            if not headers:
-                headers = self.set_header()
-            if not "Mozilla" in headers.get('user-agent'):# or not "mozilla" in headers.get('User-Agent'):
-                headers = self.set_header()
+            #if not headers:
+                #headers = self.set_header()
+            if not "Mozilla" in self.sess.headers.get('user-agent'):# or not "mozilla" in headers.get('User-Agent'):
+                headers1 = self.set_header()
+                if headers1:
+                    self.sess.headers.update(headers1)
             debug(headers = headers)
             debug(proxies = proxies)
             while 1:
@@ -1770,6 +1772,8 @@ class onefichier(object):
             return False, b.find('div').text
     
     def remote_upload(self, links, timeout = 3, retries = 10, renameit = None, proxy = None):
+        task = make_colors("Action", "lightwhite", "blue")
+        subtask = make_colors("RemoteUpload", "lightwhite", "magenta") + " "        
         proxies = self.build_proxy(proxy)
         data, total = self.list()
         self.data = data
@@ -1789,94 +1793,102 @@ class onefichier(object):
         for i in links:
             if i == 'c':
                 i = clipboard.paste()
-            post_data = {'links': i }
-            n = 1
-            while 1:
-                try:
-                    a = self.request(url, 'post', data = post_data, timeout = timeout, proxies = proxies)
-                    break
-                except:
-                    if not n == retries or n < retries:
-                        n += 1
-                        time.sleep(1)
-                    elif n > retries:
-                        n == retries                    
-                    else:
-                        error = True
-                        break
-            if error:
-                print(make_colors("please check internet connection !", 'lw', 'r'))
-                return False
-            content = a.content
-            # print("content =", content)
-            print(make_colors(re.sub("<br/>", ": ", str(content)), 'lw', 'bl'))
-            if "Can not find any valid link" in content:
-                print(make_colors("Can not find any valid link !", 'lightwhite', 'lightred'))
-                return False
-            debug(content = content)
-            check = re.findall('\d+ recorded links', content)
-            debug(check = check)
-            if check:
-                #bar = progressbar.ProgressBar(max_value = self.max_value, prefix = self.prefix, variables = self.variables)
-                task = make_colors("Action", "lightwhite", "blue")
-                subtask = make_colors("RemoteUpload", "lightwhite", "magenta") + " "
+            if "http" == i[:4] and "://" in i[:10]:
+                post_data = {'links': i }
+                n = 1
                 while 1:
-                    data_done = self.check_done(proxy = proxies)
-                    done = False
-                    if data_done:
-                        if data_done == 'error':
-                            subtask = make_colors("RemoteUpload", "lightwhite", "magenta") + " " + make_colors("[{}]".format(self.status_message), 'lw', 'r') + " "
-                            self.bar.update(self.max_value, task = task, subtask = subtask)
-                            break
-                        for j in data_done:
-                            if j.get('link') == i:
-                                self.bar.update(self.max_value, task = task, subtask = subtask)
-                                done = True
-                                break
-                        if done:
-                            break
-                    else:
-                        if i in self.check_todo(proxy = proxies):
-                            if self.bar.value == self.max_value:
-                                self.bar.value = 0							
-                            self.bar.update(self.bar.value + 4, task = task, subtask = subtask)
-                            time.sleep(2)
+                    try:
+                        a = self.request(url, 'post', data = post_data, timeout = timeout, proxies = proxies)
+                        break
+                    except:
+                        if not n == retries or n < retries:
+                            n += 1
+                            time.sleep(1)
+                        elif n > retries:
+                            n == retries                    
                         else:
-                            if self.bar.value == self.max_value:
-                                self.bar.value = 0
-                            self.bar.update(self.bar.value + 4, task = task, subtask = subtask)
-                            time.sleep(2)
-            else:
-                return False
-        debug(renameit = renameit)
-        
-        if renameit:
-            all_prev_name = []
-            all_new_name = []
-            new_items = []
-            debug(self_data = self.data)
-            for i in self.data:
-                all_prev_name.append(i.get('name'))
-            data, total = self.list()
-            self.data = data
-            for i in self.data:
-                all_new_name.append(i.get('name'))
-            debug(all_prev_name = all_prev_name)
-            debug(all_new_name = all_new_name)
-            for name in all_new_name:
-                if not name in all_prev_name:
-                    index = all_new_name.index(name)
-                    new_items.append(self.data[index])
-            debug(new_items = new_items)
-            
-            if len(new_items) == 1:
-                status, info = self.rename(new_items[0].get('rel'), renameit)
-                if status:
-                    subtask = make_colors(renameit, 'lightwhite', 'blue') + " " + make_colors("[RENAME:SUCCESS]", 'b', 'lg') + " "    
+                            error = True
+                            break
+                if error:
+                    print(make_colors("please check internet connection !", 'lw', 'r'))
+                    return False
+                content = a.content
+                # print("content =", content)
+                print(make_colors(re.sub("<br/>", ": ", str(content)), 'lw', 'bl'))
+                if "Can not find any valid link" in content:
+                    print(make_colors("Can not find any valid link !", 'lightwhite', 'lightred'))
+                    return False
+                debug(content = content)
+                check = re.findall('\d+ recorded links', content)
+                debug(check = check)
+                if check:
+                    #bar = progressbar.ProgressBar(max_value = self.max_value, prefix = self.prefix, variables = self.variables)
+                    
+                    while 1:
+                        data_done = self.check_done(proxy = proxies)
+                        done = False
+                        if data_done:
+                            if data_done == 'error':
+                                subtask = make_colors("RemoteUpload", "lightwhite", "magenta") + " " + make_colors("[{}]".format(self.status_message), 'lw', 'r') + " "
+                                self.bar.update(self.max_value, task = task, subtask = subtask)
+                                break
+                            for j in data_done:
+                                if j.get('link') == i:
+                                    self.bar.update(self.max_value, task = task, subtask = subtask)
+                                    done = True
+                                    break
+                            if done:
+                                break
+                        else:
+                            if i in self.check_todo(proxy = proxies):
+                                if self.bar.value == self.max_value:
+                                    self.bar.value = 0							
+                                self.bar.update(self.bar.value + 4, task = task, subtask = subtask)
+                                time.sleep(2)
+                            else:
+                                if self.bar.value == self.max_value:
+                                    self.bar.value = 0
+                                self.bar.update(self.bar.value + 4, task = task, subtask = subtask)
+                                time.sleep(2)
                 else:
-                    subtask = make_colors(renameit, 'lightwhite', 'blue') + " " + make_colors("[RENAME:ERROR:FAILED] [{}]".format(info), 'lw', 'r') + " "    
-                data, total = self.list()
-                self.data = data
+                    print(make_colors(content, 'lw', 'r'))
+                    subtask = make_colors(content, 'lw', 'r') + " "
+                    self.bar.update(self.bar.max_value, task = task, subtask = subtask)                    
+                    #return False
+                debug(renameit = renameit)
+        
+                if renameit:
+                    all_prev_name = []
+                    all_new_name = []
+                    new_items = []
+                    debug(self_data = self.data)
+                    for i in self.data:
+                        all_prev_name.append(i.get('name'))
+                    data, total = self.list()
+                    self.data = data
+                    for i in self.data:
+                        all_new_name.append(i.get('name'))
+                    debug(all_prev_name = all_prev_name)
+                    debug(all_new_name = all_new_name)
+                    for name in all_new_name:
+                        if not name in all_prev_name:
+                            index = all_new_name.index(name)
+                            new_items.append(self.data[index])
+                    debug(new_items = new_items)
+                    
+                    if len(new_items) == 1:
+                        status, info = self.rename(new_items[0].get('rel'), renameit[links.index(i)])
+                        if status:
+                            subtask = make_colors(renameit, 'lightwhite', 'blue') + " " + make_colors("[RENAME:SUCCESS]", 'b', 'lg') + " "    
+                        else:
+                            subtask = make_colors(renameit, 'lightwhite', 'blue') + " " + make_colors("[RENAME:ERROR:FAILED] [{}]".format(info), 'lw', 'r') + " "    
+                        data, total = self.list()
+                        self.data = data
+            else:
+                subtask = make_colors("Invalid URL:", 'lw', 'r') + " " + make_colors(i, 'b', 'y') + " "
+                self.bar.update(self.bar.max_value, task = task, subtask = subtask)
+                print(make_colors("Invalid URL:", 'lw', 'r') + " " + make_colors(i, 'b', 'y'))
+                
         self.bar.update(self.bar.max_value, task = task, subtask = subtask)
         return True	
     
@@ -1914,7 +1926,7 @@ class onefichier(object):
         parser = argparse.ArgumentParser(formatter_class = argparse.RawTextHelpFormatter)
         parser.add_argument('-b', '--sort-by', action = 'store', help = 'Sortby: time/timestamp, date, name, rel, size', default = 'date')
         parser.add_argument('-r', '--remote-upload', action = 'store', help = 'Remote Upload, "c" = get url from clipboard ', nargs = '*')
-        parser.add_argument('-n', '--rename', action = 'store', help = 'Rename after/or/and Remote Upload')
+        parser.add_argument('-n', '--rename', action = 'store', help = 'Rename after/or/and Remote Upload', nargs = "*")
         parser.add_argument('-p', '--download-path', action = 'store', help = 'Download Path or Export save path', default = os.getcwd())
         parser.add_argument('-d', '--download', action = 'store', help = 'Convert Link and download it or direct download with option "-nn"')
         parser.add_argument('-nn', '--ndownload', action = 'store', help = 'number of list to download', nargs='*')
