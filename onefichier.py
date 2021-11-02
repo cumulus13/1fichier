@@ -177,10 +177,11 @@ class onefichier(object):
         debug(retries = retries)
         debug(sleep = sleep)
         proxies = self.build_proxy(proxies)
-
+        debug(self_download_login = self.download_login)
         req, error, error_type, error_full = browser(url, rtype, headers, data, params, timeout, retries, sleep, proxies)
         exit = False
         while 1:
+            debug(self_download_login = self.download_login)
             if error_type == 'ConnectionError' or error_type == 'ReadTimeout':
                 qp = raw_input(make_colors("Connection Internet Error", 'lw', 'r') + ", " + make_colors("please check your internet connection !", 'ly') + ", " + make_colors("[n]t = retries with n times", 'b', 'lg') + ", " + make_colors("after that just enter or [q]quit or e[x]it for exit", 'lw', 'm') + ": ")
                 if qp:
@@ -1151,11 +1152,14 @@ class onefichier(object):
                     wget.download(url, download_path)
 
     def check_cookies(self, cookies):
+        debug(cookies = cookies)
+        if not cookies:
+            return {}
         cookies = str(cookies)
         debug(cookies = cookies)
         data = re.findall('SID=(.*?) ', cookies)
         debug(data = data)
-        if data:
+        if data and data[0]:
             data = filter(None, data)[0]
             debug(data = data)
             return {'SID':data}
