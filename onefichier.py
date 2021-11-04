@@ -68,7 +68,7 @@ class onefichier(object):
         self.use_proxy_config_download = False
         #self.use_proxy_proxies = False
         self.timeout = 60
-        self.retries = 10
+        self.retries = 3
         self.sleep = 1
         self.bar = progressbar.ProgressBar(max_value = self.max_value, prefix = self.prefix, variables = self.variables, max_error = False)
         self.report = ''
@@ -159,6 +159,11 @@ class onefichier(object):
                     debug(retries = retries)
                     if not n == retries or n < retries:
                         n += 1
+                        debug(n = n)
+                        if timeout < 60 and retries < 4:
+                            debug(timeout = timeout)
+                            timeout = timeout * n
+                            debug(timeout = timeout)
                         time.sleep(sleep)
                     elif n > retries:
                         n == retries                    
@@ -167,12 +172,12 @@ class onefichier(object):
                         debug(error = error)
                         # #pause()
                         break
-                debug(req = req)
-                return req, error, error_type, error_full
+            debug(req = req)
+            return req, error, error_type, error_full
 
         
         timeout = timeout or self.config.get_config('policy', 'timeout', '10') or self.timeout
-        retries = retries or self.config.get_config('policy', 'retries', '10') or self.retries
+        retries = retries or self.config.get_config('policy', 'retries', '3') or self.retries
         sleep = sleep or self.config.get_config('policy', 'sleep', '1') or self.sleep
 
         debug(timeout = timeout)
@@ -618,10 +623,12 @@ class onefichier(object):
         return hidden, b
 
     def get_download_link(self, url, print_wait = True, retries = 10, proxy = None, timeout = None, retries_proxy = 2, max_try_replay = 2):
+        #os.environ.update({"DEBUG": "1",})
+        status = False
         max_try_replay = max_try_replay or self.max_try_replay
         b1 = None
-        if self.download_login:
-            self.download_login = False
+        #if self.download_login:
+            #self.download_login = False
         timeout = timeout or self.timeout or 10
         retries = retries or self.retries or 10
         debug(url = url)
@@ -635,51 +642,13 @@ class onefichier(object):
         if proxy:
             proxies = self.build_proxy(proxy)
             debug(proxies = proxies)
+        debug(self_download_login = self.download_login)
         hidden, b = self.get_hidden(url, proxies, timeout)
-        #if not hidden and not self.hidden_use_proxy_config:
-            #debug("not hidden 1")
-            #proxies = {}
-            #if self.config.get_config('proxy', 'http') or self.config.get_config('proxy', 'https'):
-                #if self.config.get_config('proxy', 'http'):
-                    #proxies.update({'http':'http://' + self.config.get_config('proxy', 'http')})
-                    #proxies.update({'https':'https://' + self.config.get_config('proxy', 'http')})
-                #if self.config.get_config('proxy', 'https'):
-                    #proxies.update({'https':'https://' + self.config.get_config('proxy', 'https')})
-            #debug(proxies = proxies)
-            #hidden, b = self.get_hidden(url, proxies, timeout)
-            #self.hidden_use_proxy_config = True
-        #if not hidden and not self.hidden_use_proxy_download_config:
-            #debug("not hidden 2")
-            #proxies = {}
-            #if self.config.get_config('proxy', 'http') or self.config.get_config('download_proxy', 'https'):
-                #if self.config.get_config('download_proxy', 'http'):
-                    #proxies.update({'http':'http://' + self.config.get_config('download_proxy', 'http')})
-                    #proxies.update({'https':'https://' + self.config.get_config('download_proxy', 'http')})
-                #if self.config.get_config('download_proxy', 'https'):
-                    #proxies.update({'https':'https://' + self.config.get_config('download_proxy', 'https')})
-            #debug(proxies = proxies)
-            #hidden, b = self.get_hidden(url, proxies, timeout)
-            #self.hidden_use_proxy_download_config = True
-        #if not hidden:
-            #debug("not hidden 3")
-            #if not self.proxies:
-                #pt = proxy_tester()
-                #list_proxy = pt.getProxyList()
-                #self.proxies = [i.get('ip') + ":" + i.get('port') for i in list_proxy]
-            #for pr in self.proxies:
-                #proxies = self.build_proxy(pr)
-                #debug(proxies = proxies)
-                #self.sess.proxies.update(proxies)
-                #hidden, b = self.get_hidden(url, proxies, timeout)
-                #if hidden:
-                    #self.config.write_config('download_proxy', 'http', pr)
-                    #self.config.write_config('download_proxy', 'https', pr)
-                    #index = self.proxies.index(pr) + 1
-                    #self.proxies = self.proxies[index:]
-                    #self.hidden_use_proxy_config = False
-                    #self.hidden_use_proxy_download_config = False
+        debug(hidden = hidden)
+        
+        if os.getenv('DEBUG') == '1':
+            pause()
         if hidden:
-            debug(hidden = hidden)
             if proxies:
                 if proxies.get('http'):
                     try:
@@ -691,9 +660,16 @@ class onefichier(object):
                         self.config.write_config('download_proxy', 'https', urlparse(proxies.get('https')).netloc)
                     except:
                         pass
-            
+        else:
+            self.download_login = False
+            return self.get_download_link(url, print_wait, retries, proxy, timeout, retries_proxy, max_try_replay)
+        if os.getenv('DEBUG') == '1':
+            pause()    
         bloc2 = b.find('div', {'class':'bloc2'})
         debug(bloc2 = bloc2)
+        debug(self_download_login = self.download_login)
+        if os.getenv('DEBUG') == '1':
+            pause()
         if bloc2:
             debug(bloc2_text = bloc2.text)
             debug(str_bloc2 = str(bloc2))
@@ -713,7 +689,9 @@ class onefichier(object):
         debug(hidden = hidden)
         data = {'adz':hidden.get('value')}
         debug(data = data)
-        
+        debug(self_download_login = self.download_login)
+        if os.getenv('DEBUG') == '1':
+            pause()
         a1 = None
         #if login or self.download_login:
             #a1 = self.requests(url, 'post', data=data, proxies = proxies)
@@ -738,9 +716,11 @@ class onefichier(object):
                 debug(retries = retries)
                 debug(timeout = timeout)
                 if not nt == retries or nt < retries:
+                    debug("not nt == retries or nt < retries")
                     nt += 1
                     time.sleep(sleep)
                 elif nt > retries:
+                    debug("not nt == retries or nt < retries")
                     nt == retries
                     if not mt == max_try_replay:
                         mt += 1
@@ -750,60 +730,19 @@ class onefichier(object):
                         error = True
                         break                        
                 elif nt == retries:
+                    debug("nt == retries")
                     if not mt == max_try_replay:
                         mt += 1
                         if timeout < 60:
                             timeout = 60                            
                     else:
                         error = True
-                        break                        
-                    #else:
-                        #if timeout < 60:
-                            #timeout = 60                        
-                        #error = True
-                        #debug(error = error)
-                        
-                        #if not self.hidden_use_proxy_config:
-                            #debug("get download link 1")
-                            #proxies = {}
-                            #if self.config.get_config('proxy', 'http') or self.config.get_config('proxy', 'https'):
-                                #if self.config.get_config('proxy', 'http'):
-                                    #proxies.update({'http':'http://' + self.config.get_config('proxy', 'http')})
-                                    #proxies.update({'https':'https://' + self.config.get_config('proxy', 'http')})
-                                #if self.config.get_config('proxy', 'https'):
-                                    #proxies.update({'https':'https://' + self.config.get_config('proxy', 'https')})
-                            #debug(proxies = proxies)
-                            #self.hidden_use_proxy_config = True
-                            #nt = 1
-                        #elif not self.hidden_use_proxy_download_config:
-                            #debug("get download link 2")
-                            #proxies = {}
-                            #if self.config.get_config('proxy', 'http') or self.config.get_config('download_proxy', 'https'):
-                                #if self.config.get_config('download_proxy', 'http'):
-                                    #proxies.update({'http':'http://' + self.config.get_config('download_proxy', 'http')})
-                                    #proxies.update({'https':'https://' + self.config.get_config('download_proxy', 'http')})
-                                #if self.config.get_config('download_proxy', 'https'):
-                                    #proxies.update({'https':'https://' + self.config.get_config('download_proxy', 'https')})
-                            #debug(proxies = proxies)
-                            #self.hidden_use_proxy_download_config = True
-                            #nt = 1
-                        #else:
-                            #if self.proxies:
-                                #if proxies:
-                                    #index = self.proxies.index(urlparse(proxies.get('http') or proxies.get('https')).netloc)
-                                    #debug(index = index)
-                                    #if not index > len(self.proxies):
-                                        #proxies = self.build_proxy(self.proxies[index + 1])
-                                        #nt = 1
-                                        #debug(proxies = proxies)
-                                        #self.proxies.remove(self.proxies[index])
-                                #else:
-                                    #proxies = self.build_proxy(self.proxies[0])
-                                    #nt = 1
-                                    #debug(proxies = proxies)
-                                    ##return self.get_download_link(url, proxy = proxies)
-                            #else:
-                                #break
+                        break
+                debug(error = error)
+                
+        debug(self_download_login = self.download_login)
+        if os.getenv('DEBUG') == '1':
+            pause()
         if error:
             print(make_colors("Failed to get download link ! with login status is {}".format(str(login)), 'lw', 'r'))
             return False, warn_minutes, info
@@ -811,7 +750,7 @@ class onefichier(object):
             print(make_colors("Get download link [2] Failed !", 'lw', 'r'))
             return False, warn_minutes, info
         else:
-            self.download_login = True
+            #self.download_login = True
             self.hidden_use_proxy_config = False
             self.hidden_use_proxy_download_config = False
         content = a1.content
@@ -824,14 +763,32 @@ class onefichier(object):
         warn = b1.find_all('div', {'class':"ct_warn"})
         debug(warn = warn)
         debug(link = link)
+        debug(self_download_login = self.download_login)
+        if os.getenv('DEBUG') == '1':
+            pause()
         if link:
             info = self.get_download_link_info(b, url)
             if not info:
                 info = self.get_download_link_info(b1, url)
             debug(download_link = link.get('href'))
             debug(info = info)
+            self.download_login = True
             return True, link.get('href'), info
+        elif not link and self.download_login:
+            self.download_login = False
+            return self.get_download_link(url, print_wait, retries, proxy, timeout, retries_proxy, max_try_replay)
         else:
+            debug(proxy = proxy)
+            if os.getenv('DEBUG') == '1':
+                pause()
+            if proxy:
+                proxies = self.build_proxy(proxy)
+                if not self.proxies:
+                    pt = proxy_tester()
+                    list_proxy = pt.getProxyList()
+                    self.proxies = [i.get('ip') + ":" + i.get('port') for i in list_proxy]                
+                if urlparse(proxies.get('http')).netloc in self.proxies:
+                    return False, "", info
             if warn:
                 if len(warn) > 1:
                     warning = warn[1].text
@@ -846,6 +803,10 @@ class onefichier(object):
                     if warn_minutes:
                         warn_minutes = warn_minutes[0].strip()
                         debug(warn_minutes = warn_minutes)
+                    else:
+                        debug(warn_minutes = warn_minutes, debug = True)
+                        if os.getenv('DEBUG') == '1':#
+                            pause()
                     warning = re.sub("  ", " ", warning)
                     warning = re.sub("  ", " ", warning)
                     warning = re.sub("  ", " ", warning)
@@ -855,18 +816,36 @@ class onefichier(object):
                         print(make_colors(warning, 'lightwhite', 'lightred', ['blink']))
                     debug(warn_minutes = warn_minutes)
                     if (str(warn_minutes).isdigit() and int(warn_minutes) > 1) or not warn_minutes:
+                        debug("(str(warn_minutes).isdigit() and int(warn_minutes) > 1) or not warn_minutes")
+                        if os.getenv('DEBUG') == '1':
+                            pause()
                         status = False
                         if not self.use_proxy_config:
+                            if os.getenv('DEBUG') == '1':
+                                pause()
                             proxies = {}
                             if self.config.get_config('proxy', 'http') or self.config.get_config('proxy', 'https'):
+                                if os.getenv('DEBUG') == '1':
+                                    pause()
                                 if self.config.get_config('proxy', 'http'):
                                     proxies.update({'http':'http://' + self.config.get_config('proxy', 'http')})
                                     proxies.update({'https':'https://' + self.config.get_config('proxy', 'http')})
                                 if self.config.get_config('proxy', 'https'):
                                     proxies.update({'https':'https://' + self.config.get_config('proxy', 'https')})
-                                self.use_proxy_config = True
-                                status, link, info = self.get_download_link(url, False, proxy = proxies) 
+                                
+                                debug(proxies = proxies)
+                                status, link, info = self.get_download_link(url, False, proxy = proxies)
+                                debug(status = status)
+                                debug(link = link)
+                                debug(info = info)
+                                if os.getenv('DEBUG') == '1':
+                                    pause()
+                            debug(status = status)
+                            if os.getenv('DEBUG') == '1':
+                                pause()
                             if status:
+                                if os.getenv('DEBUG') == '1':
+                                    pause()
                                 try:
                                     self.config.write_config('download_proxy', 'http', urlparse(proxies.get('http')).netloc)
                                 except:
@@ -875,8 +854,19 @@ class onefichier(object):
                                     self.config.write_config('download_proxy', 'https', urlparse(proxies.get('https')).netloc)
                                 except:
                                     pass
+                                self.use_proxy_config = False
+                                self.download_login = True
                                 return status, link, info
-                        elif not self.use_proxy_config_download:
+                            self.use_proxy_config = True
+                            if os.getenv('DEBUG') == '1':
+                                pause()
+                        debug(status = status)
+                        debug(self_use_proxy_config_download = self.use_proxy_config_download)
+                        if os.getenv('DEBUG') == '1':
+                            pause()
+                        if not self.use_proxy_config_download and not status:
+                            if os.getenv('DEBUG') == '1':
+                                pause()
                             proxies = {}
                             if self.config.get_config('proxy', 'http') or self.config.get_config('download_proxy', 'https'):
                                 if self.config.get_config('download_proxy', 'http'):
@@ -885,10 +875,17 @@ class onefichier(object):
                                 if self.config.get_config('download_proxy', 'https'):
                                     proxies.update({'https':'https://' + self.config.get_config('download_proxy', 'https')})
                                 self.use_proxy_config_download = True
-                                status, link, info = self.get_download_link(url, False, proxy = proxies) 
+                                status, link, info = self.get_download_link(url, False, proxy = proxies)
+                            debug(status = status)
+                            if os.getenv('DEBUG') == '1':
+                                pause()
                             if status:
+                                self.download_login = True
                                 return status, link, info
-                        else:
+                            self.use_proxy_config_download = True
+                        if not status:
+                            if os.getenv('DEBUG') == '1':
+                                pause()
                             ntp = 0
                             while 1:
                                 if not self.proxies:
@@ -916,17 +913,30 @@ class onefichier(object):
                                             self.config.write_config('download_proxy', 'http', pr)
                                             self.config.write_config('download_proxy', 'https', pr)
                                             self.config.write_config('proxy', 'http', pr)
-                                            self.config.write_config('proxy', 'https', pr)                  
-                                            index = self.proxies.index(pr) + 1
-                                            self.proxies = self.proxies[index:]
+                                            self.config.write_config('proxy', 'https', pr)
+                                            self.use_proxy_config = False
+                                            self.use_proxy_config_download = False
+                                            self.download_login = True
+                                            try:
+                                                index = self.proxies.index(pr) + 1
+                                                self.proxies = self.proxies[index:]
+                                            except:
+                                                pass
                                             return status, link, info
-                            
+                        if os.getenv('DEBUG') == '1':
+                            pause()
                     elif str(warn_minutes).isdigit() and int(warn_minutes) == 1:
+                        debug("str(warn_minutes).isdigit() and int(warn_minutes) == 1")
+                        if os.getenv('DEBUG') == '1':
+                            pause()
                         time.sleep(10)
                         if print_wait:
                             print(make_colors("waiting for: 1 minute", 'lightwhite', 'lightred', ['blink']))
                         return self.get_download_link(url) 
                     elif str(warn_minutes).isdigit() and int(warn_minutes) <= 1:
+                        debug("str(warn_minutes).isdigit() and int(warn_minutes) <= 1")
+                        if os.getenv('DEBUG') == '1':
+                            pause()
                         time.sleep(2)
                         if print_wait:
                             print(make_colors("waiting for: 2 seconds for {} minutes".format(warn_minutes), 'lightwhite', 'lightred', ['blink']))
@@ -934,6 +944,9 @@ class onefichier(object):
                         sys.stdout.flush()
                         return self.get_download_link(url, False) 
                     else:
+                        debug("else")
+                        if os.getenv('DEBUG') == '1':
+                            pause()
                         if warn_minutes:
                             time.sleep(int(warn_minutes) / 2)
                         else:
@@ -942,7 +955,7 @@ class onefichier(object):
                             print(make_colors("waiting for: {} minute for {}".format(int(warn_minutes) / 2, warn_minutes), 'lightwhite', 'lightred', ['blink']))
                         return self.get_download_link(url) 
                 return False, warn_minutes, info
-
+        #os.environ.update({"DEBUG": "0",})
         return False, warn_minutes, info
 
     def get_sable(self, timeout = None):
@@ -1013,6 +1026,7 @@ class onefichier(object):
                 self.proxies = [i.get('ip') + ":" + i.get('port') for i in list_proxy]
             for pr in self.proxies:
                 proxies = self.build_proxy(pr)
+                debug(proxies = proxies)
                 self.sess.proxies.update(proxies)
                 sable = get(proxies)
                 if sable:
