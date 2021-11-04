@@ -1799,6 +1799,19 @@ class onefichier(object):
         if not self.check_cookies(self.sess.cookies).get('SID'):
             debug("re login not use proxies")
             self.login(relogin = True)
+        if not self.config.get_config('cookies', 'cookies'):
+            debug("re login not use proxies [config]")
+            self.login(relogin = True)
+        else:
+            try:
+                if not ast.literal_eval(self.config.get_config('cookies', 'cookies')).get('SID'):
+                    debug("re login not use proxies [config] no SID")
+                    self.login(relogin = True)
+            except:
+                print(make_colors("ERROR:", 'lw', 'r'))
+                print(traceback.format_exc())
+                print(make_colors("[remote_upload]", 'lw', 'bl') + " " + make_colors("FAILED to login !", 'lw', 'r'))
+                return False
         debug(cookie = self.sess.cookies)
         self.max_value = 100
         self.bar.max_value = 100
@@ -1876,12 +1889,12 @@ class onefichier(object):
                     all_new_name = []
                     new_items = []
                     debug(self_data = self.data)
-                    for i in self.data:
-                        all_prev_name.append(i.get('name'))
+                    for d in self.data:
+                        all_prev_name.append(d.get('name'))
                     data, total = self.list()
                     self.data = data
-                    for i in self.data:
-                        all_new_name.append(i.get('name'))
+                    for d1 in self.data:
+                        all_new_name.append(d1.get('name'))
                     debug(all_prev_name = all_prev_name)
                     debug(all_new_name = all_new_name)
                     for name in all_new_name:
