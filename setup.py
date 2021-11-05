@@ -1,8 +1,7 @@
-import io
-import re
 from __future__ import print_function
 from setuptools import setup
-
+import io
+import re
 import os, sys
 import shutil
 
