@@ -960,62 +960,102 @@ class onefichier(object):
 
     def get_sable(self, timeout = None, retries = 3):
         url = self.url + 'console/files.pl?dir_id=0&oby=0&search='
+        debug(url = url)
+        debug(self_download_login = self.download_login)
         sable = ''
         self.download_login = True
-        def get(url, proxies = {}):
+        retries = retries or self.retries
+        debug(retries = retries)
+        #pause()
+        def get(url, proxies = {}, retries = None):
+            url = self.url + 'console/files.pl?dir_id=0&oby=0&search='
+            debug(url = url)
+            debug(proxies = proxies)
+            
+            nt = 1
+            sable = ''
+            
+            retries = retries or self.retries
+            debug(retries = retries)
             task = make_colors("Sable", 'lightwhite', 'blue')
             subtask = make_colors("Get", 'lightwhite', 'magenta') + " "
-            nt = 1
+            
+            self.bar.max_value = retries
             self.bar.update(nt, task = task, subtask = subtask)            
-            sable = ''
-            a = self.request(url, timeout = timeout)
-            debug(a = a)
-            #pause()
-            if a:
-                while 1:
+            
+            while 1:
+                a = self.request(url, timeout = timeout)
+                debug(a = a)
+                #pause()
+                content = None                
+                if a:
                     debug(url = a.url)
-                    content = a.content
-                    with open('list.html', 'wb') as ff:
-                        ff.write(content)                
-                    while 1:
-                        if "error on request" in str(content) or "erreur lors de la requete" in str(content):
-                            a = self.request(url, timeout = timeout)
-                            debug(a = a)
-                            debug(url = a.url)
-                            content = a.content
-                            nt += 1
-                            subtask = make_colors("Get [wait]", 'lightwhite', 'magenta') + " "
-                            self.bar.update(nt, task = task, subtask = subtask)
-                            time.sleep(1)
-                        else:
-                            subtask = make_colors("Get [finish]", 'lightwhite', 'magenta') + " " + make_colors("[success]", 'b', 'y')
-                            self.bar.update(self.max_value, task = task, subtask = subtask)
-                            break
-                    
-                    debug(content = content)
-                    debug(sess_cookies = self.sess.cookies)
                     try:
-                        debug(SID = self.sess.cookies.get('SID'))
+                        content = a.content
+                        debug(content = content)
                     except:
-                        debug(SID = self.sess.cookies.get_dict().get('SID'))
-                    b = bs(content, 'lxml')
-                    try:
-                        sable = b.find('ul', {'id':'sable'}).find_all('li')
-                        if sable:
-                            return sable
+                        pass
+                    if content:
+                        with open('list.html', 'wb') as ff:
+                            ff.write(content)
+                        
+                        if "error on request" in str(content).lower() or "erreur lors de la requete" in str(content).lower() or "error" in str(content).lower():
+                            debug(nt = nt)
+                            if not nt == retries:
+                                nt += 1
+                                subtask = make_colors("Get [wait]", 'lightwhite', 'magenta') + " "
+                                self.bar.update(nt, task = task, subtask = subtask)
+                                time.sleep(1)
+                            else:
+                                subtask = make_colors("Get [finish]", 'lightwhite', 'magenta') + " " + make_colors("[error]", 'lw', 'r') + " "
+                                self.bar.update(self.bar.max_value, task = task, subtask = subtask)
+                                self.bar.max_value = self.max_value
+                                break
                         else:
-                            time.sleep(1)
-                    except:
-                        sable = ''
-                    debug(sable = sable)
+                            debug(content = content)
+                            debug(sess_cookies = self.sess.cookies)
+                            try:
+                                debug(SID = self.sess.cookies.get('SID'))
+                            except:
+                                debug(SID = self.sess.cookies.get_dict().get('SID'))
+                            b = bs(content, 'lxml')
+                            try:
+                                sable = b.find('ul', {'id':'sable'}).find_all('li')
+                                if sable:
+                                    subtask = make_colors("Get [finish]", 'lightwhite', 'magenta') + " " + make_colors("[success]", 'b', 'y') + " "
+                                    self.bar.update(self.bar.max_value, task = task, subtask = subtask)
+                                    self.bar.max_value = self.max_value
+                                    return sable
+                                else:
+                                    time.sleep(1)
+                            except:
+                                sable = ''
+                            debug(sable = sable)
+                else:
+                    debug(nt = nt)
+                    if not nt == retries:
+                        nt += 1
+                        subtask = make_colors("Get [wait]", 'lightwhite', 'magenta') + " "
+                        self.bar.update(nt, task = task, subtask = subtask)
+                        time.sleep(1)
+                    else:
+                        subtask = make_colors("Get [finish]", 'lightwhite', 'magenta') + " " + make_colors("[error]", 'lw', 'r')
+                        self.bar.update(self.max_value, task = task, subtask = subtask)
+                        print(make_colors("ERROR:", 'lw', 'r') + "\n" + traceback.format_exc())
+                        self.bar.max_value = self.max_value
+                        break
             return sable
         
         nt = 0
+        sable = get(url, retries = retries)
+        debug(sable = sable)
+        #pause()
         while 1:
             if sable:
                 break
             else:
-                if not nt >= retries:
+                debug(nt = nt)
+                if not nt == retries:
                     self.download_login = True
                     sable = get(url)
                 else:
@@ -1030,7 +1070,7 @@ class onefichier(object):
                 proxies_conf = {'http':'http://' + self.config.get_config('proxy', 'http')}
             elif self.config.get_config('proxy', 'http'):
                 proxies_conf = {'https':'https://' + self.config.get_config('proxy', 'http')}
-            sable = get(url, proxies_conf)
+            sable = get(url, proxies_conf, retries)
             if not sable:
                 self.config.write_config('proxy', 'http', '')
                 self.config.write_config('proxy', 'https', '')
@@ -1044,7 +1084,7 @@ class onefichier(object):
                 proxies_conf = {'http':'http://' + self.config.get_config('download_proxy', 'http')}
             elif self.config.get_config('download_proxy', 'http'):
                 proxies_conf = {'https':'https://' + self.config.get_config('download_proxy', 'http')}
-            sable = get(url, proxies_conf)
+            sable = get(url, proxies_conf, retries)
             if not sable:
                 self.config.write_config('download_proxy', 'http', '')
                 self.config.write_config('download_proxy', 'https', '')
@@ -1061,16 +1101,18 @@ class onefichier(object):
                 proxies = self.build_proxy(pr)
                 debug(proxies = proxies)
                 self.sess.proxies.update(proxies)
-                sable = get(url, proxies)
+                sable = get(url, proxies, retries)
                 if sable:
                     self.config.write_config('proxy', 'http', pr)
                     self.config.write_config('proxy', 'https', pr)
+                    self.config.write_config('download_proxy', 'http', pr)
+                    self.config.write_config('download_proxy', 'https', pr)                    
                     index = self.proxies.index(pr) + 1
                     self.proxies = self.proxies[index:]
-                    self.config.write_config('cookies', 'cookies', srt(self.sess.cookies.get_dict()))
-            if not sable:
-                self.proxies = []
-                    
+                    try:
+                        self.config.write_config('cookies', 'cookies', srt(self.sess.cookies.get_dict()))
+                    except:
+                        pass
         return sable
 
     def get_next_proxy(self, list_proxy, referer_proxy):
