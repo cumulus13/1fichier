@@ -958,46 +958,79 @@ class onefichier(object):
         #os.environ.update({"DEBUG": "0",})
         return False, warn_minutes, info
 
-    def get_sable(self, timeout = None):
+    def get_sable(self, timeout = None, retries = 3):
         url = self.url + 'console/files.pl?dir_id=0&oby=0&search='
         sable = ''
-        def get(proxies = {}):
+        self.download_login = True
+        def get(url, proxies = {}):
+            task = make_colors("Sable", 'lightwhite', 'blue')
+            subtask = make_colors("Get", 'lightwhite', 'magenta') + " "
+            nt = 1
+            self.bar.update(nt, task = task, subtask = subtask)            
             sable = ''
             a = self.request(url, timeout = timeout)
             debug(a = a)
             #pause()
             if a:
-                debug(url = a.url)
-                content = a.content
-                with open('list.html', 'wb') as ff:
-                    ff.write(content)
-                debug(content = content)
-                debug(sess_cookies = self.sess.cookies)
-                try:
-                    debug(SID = self.sess.cookies.get('SID'))
-                except:
-                    debug(SID = self.sess.cookies.get_dict().get('SID'))
-                b = bs(content, 'lxml')
-                try:
-                    sable = b.find('ul', {'id':'sable'}).find_all('li')
-                    return sable
-                except:
-                    sable = ''
-                debug(sable = sable)
+                while 1:
+                    debug(url = a.url)
+                    content = a.content
+                    with open('list.html', 'wb') as ff:
+                        ff.write(content)                
+                    while 1:
+                        if "error on request" in str(content) or "erreur lors de la requete" in str(content):
+                            a = self.request(url, timeout = timeout)
+                            debug(a = a)
+                            debug(url = a.url)
+                            content = a.content
+                            nt += 1
+                            subtask = make_colors("Get [wait]", 'lightwhite', 'magenta') + " "
+                            self.bar.update(nt, task = task, subtask = subtask)
+                            time.sleep(1)
+                        else:
+                            subtask = make_colors("Get [finish]", 'lightwhite', 'magenta') + " " + make_colors("[success]", 'b', 'y')
+                            self.bar.update(self.max_value, task = task, subtask = subtask)
+                            break
+                    
+                    debug(content = content)
+                    debug(sess_cookies = self.sess.cookies)
+                    try:
+                        debug(SID = self.sess.cookies.get('SID'))
+                    except:
+                        debug(SID = self.sess.cookies.get_dict().get('SID'))
+                    b = bs(content, 'lxml')
+                    try:
+                        sable = b.find('ul', {'id':'sable'}).find_all('li')
+                        if sable:
+                            return sable
+                        else:
+                            time.sleep(1)
+                    except:
+                        sable = ''
+                    debug(sable = sable)
             return sable
         
-        sable = get()
+        nt = 0
+        while 1:
+            if sable:
+                break
+            else:
+                if not nt >= retries:
+                    self.download_login = True
+                    sable = get(url)
+                else:
+                    break
         debug(sable = sable)
         #pause()
         
         if not sable and (self.config.get_config('proxy', 'http') or self.config.get_config('proxy', 'https')):
             proxies_conf = {}
-            print(make_colors("Use Proxy from config", 'lw', 'r'))
+            print(make_colors("[get_sable]", 'lw', 'bl') + " " + make_colors("Use Proxy from config", 'lw', 'r'))
             if self.config.get_config('proxy', 'http'):
                 proxies_conf = {'http':'http://' + self.config.get_config('proxy', 'http')}
             elif self.config.get_config('proxy', 'http'):
                 proxies_conf = {'https':'https://' + self.config.get_config('proxy', 'http')}
-            sable = get(proxies_conf)
+            sable = get(url, proxies_conf)
             if not sable:
                 self.config.write_config('proxy', 'http', '')
                 self.config.write_config('proxy', 'https', '')
@@ -1006,12 +1039,12 @@ class onefichier(object):
 
         if not sable and (self.config.get_config('download_proxy', 'http') or self.config.get_config('download_proxy', 'https')):
             proxies_conf = {}
-            print(make_colors("Use Proxy from config download", 'lw', 'r'))
+            print(make_colors("[get_sable]", 'lw', 'bl') + " " + make_colors("Use Proxy from config download", 'lw', 'r'))
             if self.config.get_config('download_proxy', 'http'):
                 proxies_conf = {'http':'http://' + self.config.get_config('download_proxy', 'http')}
             elif self.config.get_config('download_proxy', 'http'):
                 proxies_conf = {'https':'https://' + self.config.get_config('download_proxy', 'http')}
-            sable = get(proxies_conf)
+            sable = get(url, proxies_conf)
             if not sable:
                 self.config.write_config('download_proxy', 'http', '')
                 self.config.write_config('download_proxy', 'https', '')
@@ -1019,7 +1052,7 @@ class onefichier(object):
                 self.config.write_config('cookies', 'cookies', srt(self.sess.cookies.get_dict()))
 
         if not sable:
-            print(make_colors("Use Proxy from self.proxies", 'lw', 'r'))
+            print(make_colors("[get_sable] [login:{}]".format(str(self.download_login)), 'lw', 'bl') + " " + make_colors("Use Proxy from self.proxies", 'lw', 'r'))
             if not self.proxies:
                 pt = proxy_tester()
                 list_proxy = pt.getProxyList()
@@ -1028,7 +1061,7 @@ class onefichier(object):
                 proxies = self.build_proxy(pr)
                 debug(proxies = proxies)
                 self.sess.proxies.update(proxies)
-                sable = get(proxies)
+                sable = get(url, proxies)
                 if sable:
                     self.config.write_config('proxy', 'http', pr)
                     self.config.write_config('proxy', 'https', pr)
@@ -1098,7 +1131,7 @@ class onefichier(object):
         debug(sable = sable)
         #pause()
         if not sable:
-            print(make_colors("ERROR:", 'lw', 'r') + " " + make_colors("error get data !", 'r', 'lw'))
+            print(make_colors("ERROR:", 'lw', 'r') + " " + make_colors("error get data sable !", 'r', 'lw'))
             return False, 0
         #pause()
         sizes = []
@@ -1786,6 +1819,9 @@ class onefichier(object):
             return False, b.find('div').text
     
     def remote_upload(self, links, timeout = 3, retries = 10, renameit = None, proxy = None):
+        if renameit:
+            if isinstance(renameit, str):
+                renameit = [renameit]
         task = make_colors("Action", "lightwhite", "blue")
         subtask = make_colors("RemoteUpload", "lightwhite", "magenta") + " "        
         proxies = self.build_proxy(proxy)
@@ -1903,14 +1939,15 @@ class onefichier(object):
                             new_items.append(self.data[index])
                     debug(new_items = new_items)
                     
-                    if len(new_items) == 1:
-                        status, info = self.rename(new_items[0].get('rel'), renameit[links.index(i)])
-                        if status:
-                            subtask = make_colors(renameit, 'lightwhite', 'blue') + " " + make_colors("[RENAME:SUCCESS]", 'b', 'lg') + " "    
-                        else:
-                            subtask = make_colors(renameit, 'lightwhite', 'blue') + " " + make_colors("[RENAME:ERROR:FAILED] [{}]".format(info), 'lw', 'r') + " "    
-                        data, total = self.list()
-                        self.data = data
+                    if len(new_items) > 0:
+                        for new in new_items:
+                            status, info = self.rename(new.get('rel'), renameit[links.index(i)])
+                            if status:
+                                subtask = make_colors(renameit, 'lightwhite', 'blue') + " " + make_colors("[RENAME:SUCCESS]", 'b', 'lg') + " "    
+                            else:
+                                subtask = make_colors(renameit, 'lightwhite', 'blue') + " " + make_colors("[RENAME:ERROR:FAILED] [{}]".format(info), 'lw', 'r') + " "    
+                            data, total = self.list()
+                            self.data = data
             else:
                 subtask = make_colors("Invalid URL:", 'lw', 'r') + " " + make_colors(i, 'b', 'y') + " "
                 self.bar.update(self.bar.max_value, task = task, subtask = subtask)
