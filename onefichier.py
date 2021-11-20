@@ -200,6 +200,7 @@ class onefichier(object):
         debug(proxies = proxies)
         debug(self_download_login = self.download_login)
         req, error, error_type, error_full = browser(url, rtype, headers, data, params, timeout, retries, sleep, proxies)
+        pause()
         exit = False
         while 1:
             debug(self_download_login = self.download_login)
@@ -245,7 +246,7 @@ class onefichier(object):
         debug(req = req)
         
         if not req and proxies:
-            debug("use proxies exists")
+            debug("not req use proxies exists")
             #if isinstance(proxies, dict):
             print(make_colors("Use Proxy from dict", 'lw', 'r'))
             proxies = self.build_proxy(proxies)
@@ -256,7 +257,9 @@ class onefichier(object):
                 print(make_colors("use https list_proxy:", 'lw', 'm') + " " + make_colors(proxies.get('https'), 'lw', 'r'))
             req, error, error_type, error_full = browser(url, rtype, headers, data, params, timeout, retries, sleep, proxies)
             
+        
         if not req and (self.config.get_config('proxy', 'http') or self.config.get_config('proxy', 'https')):
+            debug("not req and (self.config.get_config('proxy', 'http') or self.config.get_config('proxy', 'https')")
             proxies_conf = {}
             print(make_colors("Use Proxy from config", 'lw', 'r'))
             if self.config.get_config('proxy', 'http'):
@@ -356,8 +359,11 @@ class onefichier(object):
             sys.exit(make_colors("EXIT !", 'lw','lr'))
     
     def login(self, username=None, password=None, url_code = 'login.pl', relogin = False, timeout = None):
+        debug("login")
         cookies = ''
         error = False
+        debug(relogin = relogin)
+        debug(cookie_config = self.config.get_config('cookies', 'cookies'))
         if self.config.get_config('cookies', 'cookies') and not relogin:
             try:
                 cookies = json.loads(self.config.get_config('cookies', 'cookies'))
@@ -366,39 +372,45 @@ class onefichier(object):
                     cookies = ast.literal_eval(self.config.get_config('cookies', 'cookies'))
                 except:
                     pass
+        debug(cookies = cookies)
+        pause()
         if cookies:
             self.sess.cookies.update(cookies)
-            return True
-        if not username:
-            username = self.config.get_config('auth', 'username')
-        if not password:
-            password = self.config.get_config('auth', 'password')
-        if not username:
-            username = raw_input('USERNAME (eMail): ')
-            if username:
-                self.config.write_config('auth', 'username', username)
-        if not password:
-            from getpass import getpass
-            password = getpass('PASSWORD: ')
-            if password:
-                self.config.write_config('auth', 'password', password)
-        url = self.url + url_code
-        data = {
-            'mail':username,
-            'pass':password,
-            'lt':'on',
-            'purge':'on',
-            'valider':'OK'
-        }
-
-        debug(data = data)
-
-        #a = self.sess.post(url, data = data)
-
-        a = self.request(url, data = data, rtype = 'post', timeout = timeout)
-        
+            #return True
+        if not cookies:
+            if not username:
+                username = self.config.get_config('auth', 'username')
+            if not password:
+                password = self.config.get_config('auth', 'password')
+            if not username:
+                username = raw_input('USERNAME (eMail): ')
+                if username:
+                    self.config.write_config('auth', 'username', username)
+            if not password:
+                from getpass import getpass
+                password = getpass('PASSWORD: ')
+                if password:
+                    self.config.write_config('auth', 'password', password)
+            url = self.url + url_code
+            data = {
+                'mail':username,
+                'pass':password,
+                'lt':'on',
+                'purge':'on',
+                'valider':'OK'
+            }
+    
+            debug(data = data)
+    
+            #a = self.sess.post(url, data = data)
+    
+            a = self.request(url, data = data, rtype = 'post', timeout = timeout)
+        else:
+            a = self.request(self.url)
         debug(a = a)
-        #pause()
+        debug(sess_cookies = self.sess.cookies.get_dict())
+        debug(a_content = a.content)
+        pause()
         if not a:
             return False
         
@@ -978,13 +990,12 @@ class onefichier(object):
         debug(retries = retries)
         #pause()
         def get(url, proxies = {}, retries = None):
-            url = self.url + 'console/files.pl?dir_id=0&oby=0&search='
+            #url = self.url + 'console/files.pl?dir_id=0&oby=0&search='
             debug(url = url)
             debug(proxies = proxies)
             
             nt = 1
             sable = ''
-            
             retries = retries or self.retries
             debug(retries = retries)
             task = make_colors("Sable", 'lightwhite', 'blue')
@@ -1004,6 +1015,7 @@ class onefichier(object):
                     try:
                         content = a.content
                         debug(content = content)
+                        pause()
                     except:
                         pass
                     if content:
@@ -2271,12 +2283,12 @@ def usage():
     
 if __name__ == '__main__':
     c = onefichier()
-    c.usage()
+    #c.usage()
     #c.remove("C_0_g38aio8euw61hrvjvxw5")
     # c.get_download_link(sys.argv[1])
     # c.get_download_link("https://1fichier.com/?13tkjkqtegzxu5ilewnl")
     #.get_download_link("https://1fichier.com/?vmq3xfyq9rzl5hm68d68")
-    #c.login()
+    c.login()
     #c.list()
     #dl = c.download_link("C_0_13tkjkqtegzxu5ilewnl")
     #c.export("C_0_13tkjkqtegzxu5ilewnl")
