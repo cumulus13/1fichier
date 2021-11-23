@@ -117,7 +117,7 @@ class onefichier(object):
     def requests(self, *args, **kwargs):
         return self.request(*args, **kwargs)
     
-    def request(self, url, rtype = 'get', headers = None, data = {}, params = {}, timeout = None, retries = None, sleep = None, proxies = {}, nobar = False):
+    def request(self, url, rtype = 'get', headers = None, data = {}, params = {}, timeout = None, retries = None, sleep = None, proxies = {}, nobar = False, cont = True):
         def browser(url, rtype, headers, data, params, timeout, retries, sleep, proxies = {}):
             if os.getenv('SHOW_PROXY_CONFIG') == '1':
                 debug(proxies = proxies, debug = True)
@@ -148,6 +148,10 @@ class onefichier(object):
                     debug(self_session_cookies = self.sess.cookies.get('SID'))
                 except:
                     pass
+                debug(proxies = proxies)
+                if not proxies or proxies == {}:
+                	proxies = None
+                debug(self_sess_proxies = self.sess.proxies)
                 try:
                     if rtype == 'post':
                         if self.download_login:
@@ -163,28 +167,31 @@ class onefichier(object):
                     # break
                     return req, error, error_type, error_full
                 except:
-                    tr, vl, tb = sys.exc_info()
-                    error_type = vl.__class__.__name__
-                    debug(error_type = error_type)
-                    error_full = traceback.format_exc()
-                    debug(error_full = error_full)
-                    debug(n = n)
-                    debug(retries = retries)
-                    if not n == retries or n < retries:
-                        n += 1
-                        debug(n = n)
-                        if timeout < 60 and retries < 4:
-                            debug(timeout = timeout)
-                            timeout = timeout * n
-                            debug(timeout = timeout)
-                        time.sleep(sleep)
-                    elif n > retries:
-                        n == retries                    
-                    else:
-                        error = True
-                        debug(error = error)
-                        # #pause()
-                        break
+                	self.sess.cookies.clear()
+                   	tr, vl, tb = sys.exc_info()
+                   	error_type = vl.__class__.__name__
+                   	debug(error_type = error_type)
+                   	debug(proxies = proxies)
+                   	debug(self_sess_proxies = self.sess.proxies)
+                   	error_full = traceback.format_exc()
+                   	debug(error_full = error_full)
+                   	debug(n = n)
+                   	debug(retries = retries)
+                   	if not n == retries or n < retries:
+                   	    n += 1
+                   	    debug(n = n)
+                   	    if timeout < 60 and retries < 4:
+                   	        debug(timeout = timeout)
+                   	        timeout = timeout * n
+                   	        debug(timeout = timeout)
+                   	    time.sleep(sleep)
+                   	elif n > retries:
+                   	    n == retries                    
+                   	else:
+                   	    error = True
+                   	    debug(error = error)
+                   	    # #pause()
+                   	    break
             debug(req = req)
             return req, error, error_type, error_full
 
@@ -205,6 +212,7 @@ class onefichier(object):
         while 1:
             debug(self_download_login = self.download_login)
             if error_type == 'ConnectionError' or error_type == 'ReadTimeout':
+            	self.sess.cookies.clear()
                 qp = raw_input(make_colors("Connection Internet Error", 'lw', 'r') + ", " + make_colors("please check your internet connection !", 'ly') + ", " + make_colors("[n]t = retries with n times", 'b', 'lg') + ", " + make_colors("after that just enter or [q]quit or e[x]it for exit", 'lw', 'm') + ": ")
                 if qp:
                     qp = qp.strip().lower()
@@ -244,7 +252,8 @@ class onefichier(object):
         if exit:
             sys.exit(make_colors("[request] System Exit", 'lw', 'r'))
         debug(req = req)
-        
+        if not cont:
+        	return req
         if not req and proxies:
             debug("not req use proxies exists")
             #if isinstance(proxies, dict):
@@ -279,6 +288,7 @@ class onefichier(object):
                 self.use_proxy_config = False
             else:
                 self.use_proxy_config = True
+                self.sess.proxies.update(proxies_conf)
 
         if not req and (self.config.get_config('download_proxy', 'http') or self.config.get_config('download_proxy', 'https')):
             proxies_conf = {}
@@ -302,6 +312,7 @@ class onefichier(object):
                 self.config.write_config('proxy', 'http', self.config.get_config('download_proxy', 'http'))
                 self.config.write_config('proxy', 'https', self.config.get_config('download_proxy', 'https'))
                 self.use_proxy_config_download = True
+                self.sess.proxies.update(proxies_conf)
 
         if not req:
             if not self.proxies:
@@ -321,16 +332,17 @@ class onefichier(object):
             for pr in self.proxies:
                 proxies = self.build_proxy(pr)
                 debug(proxies = proxies)
-                self.sess.proxies.update(proxies)
+                #self.sess.proxies.update(proxies)
                 req, error, error_type, error_full = browser(url, rtype, headers, data, params, timeout, retries, sleep, proxies)
                 if req:
-                    self.config.write_config('proxy', 'http', pr)
-                    self.config.write_config('proxy', 'https', pr)
-                    index = self.proxies.index(pr) + 1
-                    self.proxies = self.proxies[index:]
-                    self.use_proxy_config = True
-                    self.use_proxy_config_download = True
-                    break
+                	self.sess.proxies.update(proxies)
+                   	self.config.write_config('proxy', 'http', pr)
+                   	self.config.write_config('proxy', 'https', pr)
+                   	index = self.proxies.index(pr) + 1
+                   	self.proxies = self.proxies[index:]
+                   	self.use_proxy_config = True
+                   	self.use_proxy_config_download = True
+                   	break
         
         debug(req = req)
         debug(error = error)
@@ -406,7 +418,49 @@ class onefichier(object):
     
             a = self.request(url, data = data, rtype = 'post', timeout = timeout)
         else:
-            a = self.request(self.url)
+        	a = self.request(self.url, cont = False)
+           	debug(a = a)
+           	#print(a.content)
+           	content = a.content
+	       	debug(content = content)
+    	   	b = bs(content, 'lxml')
+        	debug(sess_proxy = self.sess.proxies)
+	       	bloc = b.find('div', {'class':'bloc2'})
+    	   	debug(bloc =  bloc)
+    	   	
+	       	if bloc and "temporarily locked" in bloc.text:
+    	   	    print(make_colors(list(set([re.sub(i, make_colors(i, 'b', 'lc'), bloc.text) for i in re.findall("\d+\.\d+\.\d+\.\d+", bloc.text)]))[0], 'lw', 'r'))
+        	    self.sess.cookies.clear()
+           	pause()
+           	if not a:
+           		self.sess.cookies.clear()
+           		pause()
+           		if not username:
+           			username = self.config.get_config('auth', 'username')
+    	   	   	if not password:
+        	   	    password = self.config.get_config('auth', 'password')
+           		if not username:
+           	   		username = raw_input('USERNAME (eMail): ')
+           	   		if username:
+           	   			self.config.write_config('auth', 'username', username)
+           	   	if not password:
+           	   		from getpass import getpass
+           	   		password = getpass('PASSWORD: ')
+           	   		if password:
+           	   			self.config.write_config('auth', 'password', password)
+           	   	url = self.url + url_code
+           	   	data = {
+           	    	'mail':username,
+	       	        'pass':password,
+    	   	        'lt':'on',
+        	        'purge':'on',
+           		    'valider':'OK'}
+           		debug(data = data)
+           		#a = self.sess.post(url, data = data)
+           		a = self.request(url, data = data, rtype = 'post', timeout = timeout)
+           		debug(content = a.content)
+           		print(a.content)
+           		pause()
         debug(a = a)
         debug(sess_cookies = self.sess.cookies.get_dict())
         debug(a_content = a.content)
@@ -564,7 +618,7 @@ class onefichier(object):
                     proxy.update({'https': 'https://' + proxy_parser.netloc})            
             proxies = proxy
         if not proxies or proxies == {}:
-            proxies = {}
+            proxies = None
         return proxies
     
     def clean_dones(self, proxy = None):
@@ -615,6 +669,8 @@ class onefichier(object):
         timeout = self.timeout or 10
         proxies = self.build_proxy(proxy)
         debug(proxies = proxies)
+        if not proxies:
+        	proxies = None
         a = None
         error = error_full = error_type = None
         sleep = self.sleep
@@ -993,7 +1049,8 @@ class onefichier(object):
             #url = self.url + 'console/files.pl?dir_id=0&oby=0&search='
             debug(url = url)
             debug(proxies = proxies)
-            
+            if not proxies:
+            	proxies = None
             nt = 1
             sable = ''
             retries = retries or self.retries
@@ -1285,6 +1342,7 @@ class onefichier(object):
 
         sable = self.get_sable(timeout, nobar = nobar)
         debug(sable = sable)
+        pause()
         debug(SID = self.sess.cookies)
         debug(SID = self.sess.cookies.get_dict())
         try:
@@ -1603,6 +1661,7 @@ class onefichier(object):
                                 task = make_colors("Deleting", "lightwhite", "lightred")
                                 subtask = make_colors("ERROR", 'lightwhite', 'lightred') + " "
                                 self.bar.update(self.bar.value + 1, task = task, subtask = subtask)
+                self.refresh()
                 return self.navigator(username, password, no_verify, use_all, force_https, force_http, proxy, minute_add, download_path, confirm, force_wget, sort_by = sort_by, data = data, search = search)
             elif "rn" in q or "rn=" in q or "rn =" in q:
                 debug("q containt 'rn'")
@@ -1649,6 +1708,7 @@ class onefichier(object):
                         else:
                             subtask = make_colors(new_name, 'lightwhite', 'blue') + " " + make_colors("[ERROR:FAILED] [{}]".format(info), 'lw', 'r') + " "    
                         self.bar.update(self.bar.max_value, task = task, subtask = subtask)
+                self.refresh()
                 return self.navigator(username, password, no_verify, use_all, force_https, force_http, proxy, minute_add, download_path, confirm, force_wget, sort_by = sort_by, data = data, search = search)
             elif q and q[-1:] == 'e' and q[:-1].isdigit():
                 debug("q containt 'e'")
@@ -2283,12 +2343,12 @@ def usage():
     
 if __name__ == '__main__':
     c = onefichier()
-    #c.usage()
+    c.usage()
     #c.remove("C_0_g38aio8euw61hrvjvxw5")
     # c.get_download_link(sys.argv[1])
     # c.get_download_link("https://1fichier.com/?13tkjkqtegzxu5ilewnl")
     #.get_download_link("https://1fichier.com/?vmq3xfyq9rzl5hm68d68")
-    c.login()
+    #c.login()
     #c.list()
     #dl = c.download_link("C_0_13tkjkqtegzxu5ilewnl")
     #c.export("C_0_13tkjkqtegzxu5ilewnl")
