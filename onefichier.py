@@ -190,7 +190,7 @@ class onefichier(object):
                    	else:
                    	    error = True
                    	    debug(error = error)
-                   	    # #pause()
+                   	    # ##pause()
                    	    break
             debug(req = req)
             return req, error, error_type, error_full
@@ -207,7 +207,7 @@ class onefichier(object):
         debug(proxies = proxies)
         debug(self_download_login = self.download_login)
         req, error, error_type, error_full = browser(url, rtype, headers, data, params, timeout, retries, sleep, proxies)
-        pause()
+        #pause()
         exit = False
         while 1:
             debug(self_download_login = self.download_login)
@@ -346,7 +346,7 @@ class onefichier(object):
         
         debug(req = req)
         debug(error = error)
-        #pause()
+        ##pause()
         if req:
             self.config.write_config('cookies', 'cookies', str(self.sess.cookies.get_dict()))
         if error:
@@ -385,7 +385,7 @@ class onefichier(object):
                 except:
                     pass
         debug(cookies = cookies)
-        pause()
+        #pause()
         if cookies:
             self.sess.cookies.update(cookies)
             #return True
@@ -431,10 +431,10 @@ class onefichier(object):
 	       	if bloc and "temporarily locked" in bloc.text:
     	   	    print(make_colors(list(set([re.sub(i, make_colors(i, 'b', 'lc'), bloc.text) for i in re.findall("\d+\.\d+\.\d+\.\d+", bloc.text)]))[0], 'lw', 'r'))
         	    self.sess.cookies.clear()
-           	pause()
+           	#pause()
            	if not a:
            		self.sess.cookies.clear()
-           		pause()
+           		#pause()
            		if not username:
            			username = self.config.get_config('auth', 'username')
     	   	   	if not password:
@@ -460,11 +460,11 @@ class onefichier(object):
            		a = self.request(url, data = data, rtype = 'post', timeout = timeout)
            		debug(content = a.content)
            		print(a.content)
-           		pause()
+           		#pause()
         debug(a = a)
         debug(sess_cookies = self.sess.cookies.get_dict())
         debug(a_content = a.content)
-        pause()
+        #pause()
         if not a:
             return False
         
@@ -1044,7 +1044,7 @@ class onefichier(object):
         self.download_login = True
         retries = retries or self.retries
         debug(retries = retries)
-        #pause()
+        ##pause()
         def get(url, proxies = {}, retries = None):
             #url = self.url + 'console/files.pl?dir_id=0&oby=0&search='
             debug(url = url)
@@ -1065,14 +1065,14 @@ class onefichier(object):
             while 1:
                 a = self.request(url, timeout = timeout, nobar = nobar)
                 debug(a = a)
-                #pause()
+                ##pause()
                 content = None                
                 if a:
                     debug(url = a.url)
                     try:
                         content = a.content
                         debug(content = content)
-                        pause()
+                        #pause()
                     except:
                         pass
                     if content:
@@ -1112,18 +1112,18 @@ class onefichier(object):
                             try:
                                 sable = b.find('ul', {'id':'sable'}).find_all('li')
                                 debug(sable = sable)
-                                #pause()
+                                ##pause()
                                 if sable:
                                     subtask = make_colors("Get [finish]", 'lightwhite', 'magenta') + " " + make_colors("[success]", 'b', 'y') + " "
                                     if not nobar:
                                         self.bar.update(self.bar.max_value, task = task, subtask = subtask)
                                     self.bar.max_value = self.max_value
-                                    #pause()
+                                    ##pause()
                                     return sable
                                 else:
                                     self.login(relogin = True, timeout = timeout)
                                     time.sleep(1)
-                                #pause()
+                                ##pause()
                             except:
                                 debug(error = traceback.format_exc())
                                 debug(content = content)
@@ -1156,13 +1156,13 @@ class onefichier(object):
                         self.bar.max_value = self.max_value
                         debug(content = content)
                         break
-            #pause()
+            ##pause()
             return sable
         
         np = 1
         sable = get(url, retries = retries)
         debug(sable = sable)
-        #pause()
+        ##pause()
         while 1:
             if sable:
                 break
@@ -1170,27 +1170,27 @@ class onefichier(object):
                 debug(np = np)
                 debug(retries = retries)
                 if np > retries:
-                    #pause()
+                    ##pause()
                     break
                 if np == retries:
-                    #pause()
+                    ##pause()
                     break                
                 elif not np == retries or not np > retries:
                     self.download_login = True
                     debug(np = np)
                     debug(retries = retries)
-                    #pause()
+                    ##pause()
                     if np > retries:
-                        #pause()
+                        ##pause()
                         break                                        
                     sable = get(url)
                     np += 1
                     
                 else:
-                    #pause()
+                    ##pause()
                     break
         debug(sable = sable)
-        #pause()
+        ##pause()
         
         task = make_colors("Sable", 'lightwhite', 'blue')
         if not sable and (self.config.get_config('proxy', 'http') or self.config.get_config('proxy', 'https')):
@@ -1328,7 +1328,7 @@ class onefichier(object):
 
         debug(self_session_cookies = self.sess.cookies)
         debug(check_cookies = self.check_cookies(self.sess.cookies))
-        #pause()
+        ##pause()
         if not self.check_cookies(self.sess.cookies).get('SID'):
             debug("login not use proxies")
             self.login()
@@ -1336,13 +1336,13 @@ class onefichier(object):
             debug("re login not use proxies")
             self.login(relogin = True)
         
-        #pause()
+        ##pause()
         n = 1
         error = False
 
         sable = self.get_sable(timeout, nobar = nobar)
         debug(sable = sable)
-        pause()
+        #pause()
         debug(SID = self.sess.cookies)
         debug(SID = self.sess.cookies.get_dict())
         try:
@@ -1350,11 +1350,11 @@ class onefichier(object):
         except:
             pass
         debug(sable = sable)
-        #pause()
+        ##pause()
         if not sable:
             print(make_colors("ERROR:", 'lw', 'r') + " " + make_colors("error get data sable !", 'r', 'lw'))
             return False, 0
-        #pause()
+        ##pause()
         sizes = []
         total = 0
         if sable:
@@ -1402,7 +1402,7 @@ class onefichier(object):
             debug(data = data)
         self.data = data
         self.total = total
-        # #pause()
+        # ##pause()
         return data, total
     
     def download(self, url, download_path=os.getcwd(), confirm=False, use_wget=False, name = None):
@@ -1472,7 +1472,7 @@ class onefichier(object):
         except:
             pass
         
-        #pause()
+        ##pause()
         
         if not data:
             data, total = self.list()
@@ -1504,7 +1504,7 @@ class onefichier(object):
         
         debug(data = data)			
         debug(print_list = print_list)
-        #pause()
+        ##pause()
         if print_list and data:
             n = 1
             for i in data:
@@ -1584,7 +1584,7 @@ class onefichier(object):
                     number_selected = [number_selected]
                     
                 debug(number_selected = number_selected)
-                # #pause()
+                # ##pause()
 
                 debug("q containt 'd'")
                 debug(number_selected = sorted(number_selected))
@@ -1801,7 +1801,7 @@ class onefichier(object):
                 print(make_colors(help_str, 'lightcyan'))
             elif q == 'S' or "S=" in q or "S =" in q:
                 debug("q is 'S'")
-                #pause()
+                ##pause()
                 if q == 'S':
                     query = raw_input(make_colors("Search for", 'lw', 'm') + ": ")
                 else:                
@@ -1818,7 +1818,7 @@ class onefichier(object):
                         total = self.total
                 data_filter = self.search(query, data)
                 debug(data_filter = data_filter)
-                #pause()
+                ##pause()
                 return self.navigator(username, password, no_verify, use_all, force_https, force_http, proxy, minute_add, download_path, confirm, force_wget, sort_by = sort_by, data = data_filter, search = True)
             else:
                 query = [q]
@@ -1831,7 +1831,7 @@ class onefichier(object):
                         total = self.total
                 data_filter = self.search(query, data)
                 debug(data_filter = data_filter)
-                #pause()
+                ##pause()
                 return self.navigator(username, password, no_verify, use_all, force_https, force_http, proxy, minute_add, download_path, confirm, force_wget, sort_by = sort_by, data = data_filter, search = True)                
                 
         #raw_input("Enter to Continue")
@@ -2092,7 +2092,7 @@ class onefichier(object):
         with open('rename.html', 'wb') as ff:
             ff.write(content)
         debug(content = content)
-        #pause()
+        ##pause()
         if 'File renamed successfully' in content:
             return True, ''
         else:
