@@ -429,7 +429,7 @@ class onefichier(object):
     	   	debug(bloc =  bloc)
     	   	
 	       	if bloc and "temporarily locked" in bloc.text:
-    	   	    print(make_colors(list(set([re.sub(i, make_colors(i, 'b', 'lc'), bloc.text) for i in re.findall("\d+\.\d+\.\d+\.\d+", bloc.text)]))[0], 'lw', 'r'))
+    	   	    print(make_colors(list(set([re.sub(i, make_colors(i, 'b', 'lc'), bloc.text.strip()) for i in re.findall("\d+\.\d+\.\d+\.\d+", bloc.text)]))[0], 'lw', 'r'))
         	    self.sess.cookies.clear()
            	#pause()
            	if not a:
@@ -459,7 +459,7 @@ class onefichier(object):
            		#a = self.sess.post(url, data = data)
            		a = self.request(url, data = data, rtype = 'post', timeout = timeout)
            		debug(content = a.content)
-           		print(a.content)
+           		#print(a.content)
            		#pause()
         debug(a = a)
         debug(sess_cookies = self.sess.cookies.get_dict())
@@ -1615,6 +1615,7 @@ class onefichier(object):
                     self.bar.update(self.bar.max_value, task = task, subtask = subtask)					
                     self.bar.value = 0
                     #time.sleep(62)
+                #self.refresh()
                 return self.navigator(username, password, no_verify, use_all, force_https, force_http, proxy, minute_add, download_path, confirm, force_wget, sort_by = sort_by, data = data, search = search)
             elif q and q[-1:] == 'm':
                 debug("q containt 'm'")
@@ -1742,6 +1743,7 @@ class onefichier(object):
                         qr = [qr.strip()]
                     if 'http' in qr[0] or 'ftp' in qr[0]:
                         self.remote_upload(qr)
+                self.refresh()
                 return self.navigator(username, password, no_verify, use_all, force_https, force_http, proxy, minute_add, download_path, confirm, force_wget, sort_by = sort_by, data = data, search = search)
             elif q == "s" or "s=" in q or "s =" in q:
                 debug("q is 's'")
@@ -1768,6 +1770,8 @@ class onefichier(object):
                 print("\n")
                 sys.exit(make_colors("EXIT !", 'lightwhite', 'lightred'))
                 #sys.exit()
+            elif q == 'w':
+            	self.refresh()
             elif q == 'h' or q == '-h':
                 debug("q containt 'h' or '-h")
                 print(make_colors("command line option help", 'lw', 'r'))
@@ -1851,6 +1855,7 @@ class onefichier(object):
         make_colors("s = sort by 'rel', 'name', 'date', 'size', 'timestamp'", 'r', "lw") + ", " +\
         make_colors("S = search for", 'lw', "m") + ", " +\
         make_colors("[n]e = Export n to file .csv", 'red', "lightyellow") + ", " +\
+        make_colors("w = refresh/reload", 'lw', "magenta") + ", " +\
         make_colors('h|-h = Print command help', 'black', 'lightgreen') + ", " +\
         make_colors("e[x]it|[q]uit = exit|quit", 'lightred') + ", " +\
         make_colors("download_path=[dir], set download path", 'lightblue') + ", " +\
