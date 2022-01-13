@@ -83,7 +83,7 @@ version = __version__.version
 requirements = [
         'make_colors>=3.12',
         'requests',
-        'bs4',
+        'beautifulsoup4>=4.9.3',
         'clipboard',
         'pydebugger',
         'configset',

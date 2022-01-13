@@ -190,7 +190,7 @@ def parse_version(ver, pre=False):
 
     return Version(major, minor, micro, release, pre, post, dev)
 
-v = re.findall(".", vv.version)
+v = re.split("\.", vv.version)
 v = filter(lambda k: k.isdigit(), v)
 ve = [int(i) for i in v][:3]
 if len(ve) == 2:
